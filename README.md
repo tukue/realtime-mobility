@@ -1,5 +1,4 @@
-# Stockholm transportation learning 
-app
+# Stockholm transportation planner learning app
 
 A real-time web application for tracking bus, train, metro, tram, and ship arrivals in Stockholm using SL (Storstockholms Lokaltrafik) APIs.
 
