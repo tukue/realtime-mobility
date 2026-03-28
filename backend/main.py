@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
-from routers import realtime, departures
+from routers import realtime, departures, situations
 
 load_dotenv()
 
@@ -19,6 +19,7 @@ app.add_middleware(
 
 app.include_router(realtime.router, prefix="/api/realtime", tags=["realtime"])
 app.include_router(departures.router, prefix="/api/departures", tags=["departures"])
+app.include_router(situations.router, prefix="/api/situations", tags=["situations"])
 
 @app.get("/")
 async def root():

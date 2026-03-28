@@ -10,7 +10,7 @@ function App() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>Stockholm Transit Tracker</h1>
+        <h1 style={styles.title}>Stockholm Travel Planner</h1>
         <p style={styles.subtitle}>Real-time bus, metro, and train arrivals</p>
       </header>
 

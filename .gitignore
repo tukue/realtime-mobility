@@ -1,2 +1,28 @@
-node_modules/
+# Environments
 .env
+.env.local
+.env.development
+.env.production
+backend/.env
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/routers/__pycache__/
+*.pyc
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

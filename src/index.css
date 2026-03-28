@@ -1,7 +1,7 @@
 * {
   margin: 0;
   padding: 0;
-  box-box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 body {
@@ -10,9 +10,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #000000;
   min-height: 100vh;
-  color: #1a202c;
+  color: #ffffff;
 }
 
 #root {
