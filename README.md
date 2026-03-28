@@ -79,9 +79,6 @@ The frontend will automatically proxy API requests to the backend.
 
 ### SL API Documentation
 
-- [SL Realtidsinformation 4](https://www.trafiklab.se/api/trafiklab-apis/sl/stop-lookup/)
-- [SL Stop Lookup](https://www.trafiklab.se/api/trafiklab-apis/sl/stop-lookup/)
-
 ## Features to Add
 
 - Push notifications for specific lines
