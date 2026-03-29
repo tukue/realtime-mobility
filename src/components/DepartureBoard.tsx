@@ -32,7 +32,7 @@ function DepartureBoard({ site }: DepartureBoardProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/departures/format/${site.SiteId}`);
+      const response = await fetch(`/api/departures/format/${site.SiteId}?source=free`);
       if (!response.ok) throw new Error('Failed to fetch departures');
 
       const data = await response.json();

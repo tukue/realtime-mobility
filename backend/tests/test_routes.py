@@ -31,6 +31,19 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(payload["ResponseData"][0]["Name"], "Odenplan")
 
+    async def test_realtime_search_route_can_use_free_source(self):
+        async def fake_search_free(query, client=None):
+            return [{"name": query}]
+
+        original = realtime.search_stops_free
+        realtime.search_stops_free = fake_search_free
+        try:
+            payload = await realtime.search_site("Odenplan", source="free")
+        finally:
+            realtime.search_stops_free = original
+
+        self.assertEqual(payload["ResponseData"][0]["Name"], "Odenplan")
+
     async def test_situations_route_delegates_to_service(self):
         async def fake_alerts(site_id=None, transport_mode=None, client=None):
             return {"status": "ok", "alerts": [{"Text": "Delay"}]}
@@ -44,6 +57,20 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["alerts"][0]["Text"], "Delay")
+
+    async def test_situations_route_can_use_free_source(self):
+        async def fake_alerts_free(site_id=None, transport_mode=None, client=None):
+            return {"status": "ok", "alerts": [{"message": "Delay"}]}
+
+        original = situations.fetch_service_alerts_free
+        situations.fetch_service_alerts_free = fake_alerts_free
+        try:
+            payload = await situations.get_service_alerts(site_id=9117, source="free")
+        finally:
+            situations.fetch_service_alerts_free = original
+
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["alerts"][0]["message"], "Delay")
 
 
 if __name__ == "__main__":

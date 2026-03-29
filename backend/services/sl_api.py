@@ -8,6 +8,9 @@ import httpx
 SL_TYPEAHEAD_URL = "https://journeyplanner.integration.sl.se/v1/typeahead.json"
 SL_REALTIME_URL = "https://api.sl.se/api2/realtimedeparturesV4.json"
 SL_SITUATION_URL = "https://api.sl.se/api2/deviations.json"
+SL_FREE_SITES_URL = "https://transport.integration.sl.se/v1/sites"
+SL_FREE_DEPARTURES_URL = "https://transport.integration.sl.se/v1/sites/{site_id}/departures"
+SL_FREE_DEVIATIONS_URL = "https://deviations.integration.sl.se/v1/messages"
 
 
 class SLApiError(Exception):
@@ -27,8 +30,9 @@ async def _fetch_json(
     *,
     timeout: float = 10.0,
     client: Optional[httpx.AsyncClient] = None,
+    require_api_key: bool = True,
 ) -> dict[str, Any]:
-    if client is None and not params.get("key"):
+    if require_api_key and client is None and not params.get("key"):
         raise SLApiError(
             "Missing SL API key. Check backend/.env and restart the backend.",
             status_code=500,
@@ -85,6 +89,39 @@ async def search_stops(
     return await _fetch_json(SL_TYPEAHEAD_URL, params, client=client)
 
 
+async def search_stops_free(
+    query: str,
+    *,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    params = {
+        "expand": "true",
+    }
+    data = await _fetch_json(
+        SL_FREE_SITES_URL,
+        params,
+        client=client,
+        require_api_key=False,
+    )
+
+    if isinstance(data, list):
+        lower_query = query.lower().strip()
+        results: list[dict[str, Any]] = []
+        for item in data:
+            name = str(item.get("name", ""))
+            if lower_query in name.lower():
+                results.append(item)
+        return results
+
+    for key in ("sites", "results", "stopPlaces", "stop_areas", "items"):
+        value = data.get(key)
+        if isinstance(value, list):
+            lower_query = query.lower().strip()
+            return [item for item in value if lower_query in str(item.get("name", "")).lower()]
+
+    return []
+
+
 async def fetch_realtime_departures(
     site_id: int,
     *,
@@ -105,6 +142,15 @@ async def fetch_realtime_departures(
         )
 
     return data
+
+
+async def fetch_realtime_departures_free(
+    site_id: int,
+    *,
+    client: Optional[httpx.AsyncClient] = None,
+) -> dict[str, Any]:
+    url = SL_FREE_DEPARTURES_URL.format(site_id=site_id)
+    return await _fetch_json(url, {}, client=client, require_api_key=False)
 
 
 async def fetch_service_alerts(
@@ -131,6 +177,32 @@ async def fetch_service_alerts(
         "status": "ok",
         "alerts": data.get("ResponseData", []),
     }
+
+
+async def fetch_service_alerts_free(
+    site_id: Optional[int] = None,
+    *,
+    transport_mode: Optional[str] = None,
+    client: Optional[httpx.AsyncClient] = None,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    if site_id is not None:
+        params["site"] = site_id
+    if transport_mode:
+        params["transport_mode"] = transport_mode.upper()
+
+    data = await _fetch_json(
+        SL_FREE_DEVIATIONS_URL,
+        params,
+        client=client,
+        require_api_key=False,
+    )
+
+    if isinstance(data, list):
+        return {"status": "ok", "alerts": data}
+
+    alerts = data.get("messages") or data.get("ResponseData") or data.get("items") or []
+    return {"status": "ok", "alerts": alerts}
 
 
 def normalize_transport_data(
@@ -170,4 +242,62 @@ def normalize_departure_payload(raw: dict[str, Any], site_id: int) -> dict[str, 
         "trains": normalize_transport_data(response_data.get("Trains", []) or [], "train"),
         "trams": normalize_transport_data(response_data.get("Trams", []) or [], "tram"),
         "ships": normalize_transport_data(response_data.get("Ships", []) or [], "ship"),
+    }
+
+
+def normalize_free_site_result(item: dict[str, Any]) -> dict[str, Any]:
+    site_id = item.get("id") or item.get("siteId") or item.get("gid") or ""
+    stop_areas = item.get("stop_areas") or item.get("stopAreas") or []
+
+    return {
+        "SiteId": str(site_id),
+        "Name": item.get("name") or item.get("display_name") or item.get("title") or "",
+        "Type": item.get("type") or item.get("transport_mode") or "Stop",
+        "X": str(item.get("lon") or item.get("x") or ""),
+        "Y": str(item.get("lat") or item.get("y") or ""),
+        "StopAreas": stop_areas,
+    }
+
+
+def normalize_free_sites(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [normalize_free_site_result(item) for item in items]
+
+
+def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[str, Any]:
+    departures = raw.get("departures") if isinstance(raw, dict) else []
+    if departures is None:
+        departures = []
+
+    buses = []
+    for item in departures:
+        line = item.get("line") or {}
+        stop_deviations = item.get("deviations") or []
+        buses.append(
+            {
+                "line_number": str(line.get("designation") or line.get("id") or ""),
+                "destination": item.get("destination") or "",
+                "display_time": item.get("display") or "",
+                "expected_datetime": item.get("expected") or "",
+                "journey_direction": item.get("direction_code") or 0,
+                "group_of_line": line.get("group_of_lines") or "",
+                "transport_mode": str(line.get("transport_mode") or "BUS").lower(),
+                "deviations": stop_deviations if isinstance(stop_deviations, list) else [stop_deviations],
+                "has_deviations": bool(stop_deviations),
+            }
+        )
+
+    stop_deviations = raw.get("stop_deviations") if isinstance(raw, dict) else []
+    if stop_deviations is None:
+        stop_deviations = []
+
+    return {
+        "site_id": site_id,
+        "site_name": raw.get("site_name", "") if isinstance(raw, dict) else "",
+        "status": "ok",
+        "buses": buses,
+        "metros": [],
+        "trains": [],
+        "trams": [],
+        "ships": [],
+        "stop_deviations": stop_deviations,
     }

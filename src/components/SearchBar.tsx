@@ -24,7 +24,9 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/realtime/search?query=${encodeURIComponent(query)}`);
+        const response = await fetch(
+          `/api/realtime/search?query=${encodeURIComponent(query)}&source=free`
+        );
         const data = await response.json();
 
         if (!response.ok) {
@@ -107,7 +109,7 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
 
       {showResults && !loading && error && (
         <div style={styles.errorResults}>
-          Search failed: {error}. Check that the backend is running and the SL API key is valid.
+          Search failed: {error}. Check that the backend is running and the SL free API is reachable.
         </div>
       )}
     </div>
