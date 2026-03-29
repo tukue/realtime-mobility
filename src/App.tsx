@@ -6,6 +6,7 @@ import { Site } from './types';
 
 function App() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [startingLocation, setStartingLocation] = useState('');
 
   return (
     <div style={styles.shell}>
@@ -15,9 +16,9 @@ function App() {
       <main style={styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm bus arrivals</div>
-          <h1 style={styles.title}>Dinner lines, live and easy to read.</h1>
+          <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
           <p style={styles.subtitle}>
-            Search a stop, tap a favourite, and check the next bus in seconds with live updates and service alerts.
+            Search a stop or station first, then add a starting location if you want to compare the trip.
           </p>
 
           <div style={styles.pills}>
@@ -32,6 +33,24 @@ function App() {
             <div style={styles.card}>
               <div style={styles.cardLabel}>Find a stop</div>
               <SearchBar onSiteSelect={setSelectedSite} />
+            </div>
+
+            <div style={styles.card}>
+              <div style={styles.cardLabel}>Starting location</div>
+              <label style={styles.inlineLabel} htmlFor="starting-location">
+                Optional
+              </label>
+              <input
+                id="starting-location"
+                type="text"
+                value={startingLocation}
+                onChange={(e) => setStartingLocation(e.target.value)}
+                placeholder="Home, office, or landmark"
+                style={styles.startInput}
+              />
+              <div style={styles.helperText}>
+                Add this if you want the board to show the trip context from where you are leaving.
+              </div>
             </div>
 
             <div style={styles.card}>
@@ -51,7 +70,7 @@ function App() {
 
           <section style={styles.boardArea}>
             {selectedSite ? (
-              <StopBoard site={selectedSite} />
+              <StopBoard site={selectedSite} startingLocation={startingLocation} />
             ) : (
               <div style={styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
@@ -60,7 +79,7 @@ function App() {
                   The board will show the next buses, arrival times, and any service issues once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Try a central stop like Skanstull, Odenplan, or Stureplan.
+                  Try a central stop like Skanstull, Odenplan, or Stureplan, then add your starting location if needed.
                 </div>
               </div>
             )}
@@ -183,6 +202,30 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase',
     color: 'var(--muted)',
     marginBottom: '12px',
+  },
+  inlineLabel: {
+    display: 'block',
+    fontSize: '0.92rem',
+    fontWeight: 700,
+    color: 'var(--text)',
+    marginBottom: '10px',
+  },
+  startInput: {
+    width: '100%',
+    padding: '14px 16px',
+    fontSize: '16px',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: '16px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+    outline: 'none',
+    marginBottom: '10px',
+  },
+  helperText: {
+    color: 'var(--muted)',
+    fontSize: '0.88rem',
+    lineHeight: 1.5,
   },
   steps: {
     margin: 0,

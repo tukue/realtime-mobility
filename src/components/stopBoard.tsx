@@ -4,9 +4,10 @@ import DepartureCard from './DepartureCard';
 
 interface StopBoardProps {
   site: Site;
+  startingLocation?: string;
 }
 
-function StopBoard({ site }: StopBoardProps) {
+function StopBoard({ site, startingLocation }: StopBoardProps) {
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -106,6 +107,11 @@ function StopBoard({ site }: StopBoardProps) {
         <div>
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
+          {(startingLocation || site.Name) && (
+            <div style={styles.routeLine}>
+              {startingLocation ? startingLocation : 'Your starting point'} to {site.Name}
+            </div>
+          )}
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
             <span style={styles.metaChip}>{refreshing ? 'Refreshing now' : 'Auto refresh on'}</span>
@@ -165,6 +171,12 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1,
     letterSpacing: '-0.04em',
     color: 'var(--text)',
+  },
+  routeLine: {
+    marginTop: '10px',
+    color: 'var(--muted)',
+    fontSize: '0.96rem',
+    lineHeight: 1.5,
   },
   refreshButton: {
     flexShrink: 0,
