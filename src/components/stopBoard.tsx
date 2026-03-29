@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Site, DepartureData, Departure } from '../types';
 import DepartureCard from './DepartureCard';
 
-interface DepartureBoardProps {
+interface StopBoardProps {
   site: Site;
 }
 
-function DepartureBoard({ site }: DepartureBoardProps) {
+function StopBoard({ site }: StopBoardProps) {
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,13 +33,16 @@ function DepartureBoard({ site }: DepartureBoardProps) {
 
     try {
       const response = await fetch(`/api/departures/format/${site.SiteId}?source=free`);
-      if (!response.ok) throw new Error('Failed to fetch departures');
-
       const data = await response.json();
-      setDepartures(data);
+
+      if (!response.ok) {
+        throw new Error(data?.detail || 'Failed to fetch departures');
+      }
+
+      setDepartures(data as DepartureData);
       setLastUpdated(new Date());
     } catch (err) {
-      setError('Unable to load departures. Please try again.');
+      setError('Unable to load departures from the SL free API. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -277,4 +280,4 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-export default DepartureBoard;
+export default StopBoard;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import SearchBar from './components/SearchBar';
-import DepartureBoard from './components/DepartureBoard';
+import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import { Site } from './types';
 
@@ -51,7 +51,7 @@ function App() {
 
           <section style={styles.boardArea}>
             {selectedSite ? (
-              <DepartureBoard site={selectedSite} />
+              <StopBoard site={selectedSite} />
             ) : (
               <div style={styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
