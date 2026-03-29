@@ -7,14 +7,22 @@ interface DepartureCardProps {
 }
 
 function DepartureCard({ departure, color }: DepartureCardProps) {
+  const hasDeviations = departure.deviations && departure.deviations.length > 0;
+
   return (
     <div style={styles.card}>
-      <div style={{ ...styles.lineNumber, backgroundColor: color }}>
-        {departure.line_number}
-      </div>
+      <div style={{ ...styles.lineNumber, backgroundColor: color }}>{departure.line_number}</div>
+
       <div style={styles.info}>
-        <div style={styles.destination}>{departure.destination}</div>
-        <div style={styles.time}>{departure.display_time}</div>
+        <div style={styles.topRow}>
+          <div style={styles.destination}>{departure.destination}</div>
+          <div style={styles.time}>{departure.display_time}</div>
+        </div>
+
+        <div style={styles.bottomRow}>
+          <div style={styles.meta}>{departure.expected_datetime}</div>
+          {hasDeviations ? <div style={styles.alert}>Possible delay</div> : <div style={styles.ok}>On track</div>}
+        </div>
       </div>
     </div>
   );
@@ -23,38 +31,85 @@ function DepartureCard({ departure, color }: DepartureCardProps) {
 const styles: Record<string, React.CSSProperties> = {
   card: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'stretch',
+    gap: '14px',
     padding: '16px',
-    backgroundColor: '#f7fafc',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    transition: 'transform 0.2s, box-shadow 0.2s',
+    background: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: '20px',
+    border: '1px solid var(--border)',
+    transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
   },
   lineNumber: {
-    minWidth: '48px',
-    height: '48px',
+    minWidth: '56px',
+    height: '56px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: '8px',
+    borderRadius: '16px',
     color: 'white',
-    fontWeight: '700',
-    fontSize: '18px',
-    marginRight: '16px',
+    fontWeight: '800',
+    fontSize: '1.1rem',
+    letterSpacing: '-0.02em',
   },
   info: {
     flex: 1,
+    minWidth: 0,
+    display: 'grid',
+    gap: '10px',
   },
   destination: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#1a202c',
-    marginBottom: '4px',
+    fontSize: '1rem',
+    fontWeight: 800,
+    color: 'var(--text)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   time: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#667eea',
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: '1.45rem',
+    fontWeight: 700,
+    color: 'var(--accent)',
+    letterSpacing: '-0.03em',
+    whiteSpace: 'nowrap',
+  },
+  topRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+  bottomRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexWrap: 'wrap',
+  },
+  meta: {
+    color: 'var(--muted)',
+    fontSize: '0.88rem',
+    lineHeight: 1.4,
+  },
+  alert: {
+    padding: '6px 10px',
+    borderRadius: '999px',
+    background: 'rgba(255, 122, 122, 0.14)',
+    color: '#ffc1c1',
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+  },
+  ok: {
+    padding: '6px 10px',
+    borderRadius: '999px',
+    background: 'rgba(113, 211, 155, 0.14)',
+    color: '#c8f6db',
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
   },
 };
 

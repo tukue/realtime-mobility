@@ -1,18 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+:root {
+  color-scheme: dark;
+  --bg-0: #07111f;
+  --bg-1: #0b1c33;
+  --bg-2: #10284a;
+  --panel: rgba(9, 18, 32, 0.8);
+  --panel-strong: rgba(10, 22, 39, 0.96);
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #f4f7fb;
+  --muted: #a9b4c3;
+  --brand: #68b7ff;
+  --accent: #f7b955;
+  --danger: #ff7a7a;
+  --success: #71d39b;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(104, 183, 255, 0.22), transparent 35%),
+    radial-gradient(circle at top right, rgba(247, 185, 85, 0.18), transparent 28%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Manrope', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #000000;
+  background: transparent;
   min-height: 100vh;
-  color: #ffffff;
+  color: var(--text);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
 }
 
 #root {
