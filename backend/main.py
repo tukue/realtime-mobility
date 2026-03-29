@@ -3,9 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
-from routers import realtime, departures, situations
-
 load_dotenv()
+
+from routers import realtime, departures, situations
 
 app = FastAPI(title="Stockholm Transit API")
 

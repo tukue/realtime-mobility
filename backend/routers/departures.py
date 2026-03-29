@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from services.sl_api import normalize_departure_payload, fetch_realtime_departures
+from services.sl_api import SLApiError, normalize_departure_payload, fetch_realtime_departures
 
 router = APIRouter()
 
@@ -10,5 +10,7 @@ async def get_formatted_departures(site_id: int):
     try:
         raw_departures = await fetch_realtime_departures(site_id)
         return normalize_departure_payload(raw_departures, site_id)
+    except SLApiError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
