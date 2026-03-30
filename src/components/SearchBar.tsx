@@ -21,24 +21,42 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
       return;
     }
 
+    let isMounted = true;
     const timeoutId = setTimeout(async () => {
+      if (!isMounted) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
+
       try {
         const sites = await searchStops(query);
+        if (!isMounted) {
+          return;
+        }
         setResults(sites);
         setShowResults(true);
       } catch (error) {
         console.error('Search error:', error);
+        if (!isMounted) {
+          return;
+        }
         setResults([]);
         setShowResults(true);
         setError(error instanceof Error ? error.message : 'Search failed');
       } finally {
+        if (!isMounted) {
+          return;
+        }
         setLoading(false);
       }
     }, 300);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [query]);
 
   const handleSelect = (site: Site) => {

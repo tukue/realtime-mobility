@@ -9,6 +9,25 @@ const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
 const STARTING_LOCATION_KEY = 'realtime-mobility.starting-location';
 const MAX_RECENTS = 4;
 
+function loadRecentSites(): Site[] {
+  try {
+    const stored = window.localStorage.getItem(RECENT_SITES_KEY);
+    if (!stored) {
+      return [];
+    }
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.slice(0, MAX_RECENTS);
+  } catch (error) {
+    console.error('Failed to load recent stops:', error);
+    return [];
+  }
+}
+
 function App() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [startingLocation, setStartingLocation] = useState('');
@@ -16,17 +35,7 @@ function App() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(RECENT_SITES_KEY);
-      if (!stored) return;
-
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        setRecentSites(parsed.slice(0, MAX_RECENTS));
-      }
-    } catch (error) {
-      console.error('Failed to load recent stops:', error);
-    }
+    setRecentSites(loadRecentSites());
   }, []);
 
   useEffect(() => {
@@ -97,7 +106,7 @@ function App() {
 
       <main style={styles.container}>
         <header style={styles.header}>
-          <div style={styles.kicker}>Stockholm public transport</div>
+          <div style={styles.kicker}>Stockholm travel planner</div>
           <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
           <p style={styles.subtitle}>
             Search a stop or station, save the ones you use often, and keep the board open while you move.

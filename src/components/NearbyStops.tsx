@@ -23,25 +23,42 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
       return;
     }
 
+    let isMounted = true;
     const timeoutId = window.setTimeout(async () => {
+      if (!isMounted) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
         const sites = await searchStops(query);
+        if (!isMounted) {
+          return;
+        }
         setResults(sites.slice(0, 4));
         setShowResults(true);
       } catch (fetchError) {
         console.error('Nearby stop search error:', fetchError);
+        if (!isMounted) {
+          return;
+        }
         setResults([]);
         setShowResults(true);
         setError(fetchError instanceof Error ? fetchError.message : 'Search failed');
       } finally {
+        if (!isMounted) {
+          return;
+        }
         setLoading(false);
       }
     }, 300);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeoutId);
+    };
   }, [startingPosition]);
 
   if (startingPosition.trim().length < 2) {
