@@ -174,8 +174,17 @@ async def get_nearby_free_sites(
 
     for item in sites:
         try:
-            site_lat = float(item.get("lat") or item.get("y"))
-            site_lon = float(item.get("lon") or item.get("x"))
+            lat_value = item.get("lat")
+            if lat_value is None:
+                lat_value = item.get("y")
+            lon_value = item.get("lon")
+            if lon_value is None:
+                lon_value = item.get("x")
+            if lat_value is None or lon_value is None:
+                continue
+
+            site_lat = float(lat_value)
+            site_lon = float(lon_value)
         except (TypeError, ValueError):
             continue
 

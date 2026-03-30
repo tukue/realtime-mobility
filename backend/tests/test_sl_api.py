@@ -112,6 +112,34 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data[0]["Name"], "Near Stop")
         self.assertIn("distance_meters", data[0])
 
+    async def test_get_nearby_free_sites_skips_missing_coordinates(self):
+        client = FakeClient(
+            {
+                "https://transport.integration.sl.se/v1/sites": FakeResponse(
+                    [
+                        {
+                            "id": 1,
+                            "name": "Broken Stop",
+                            "lat": None,
+                            "lon": "",
+                        },
+                        {
+                            "id": 2,
+                            "name": "Working Stop",
+                            "lat": 59.3435,
+                            "lon": 18.0459,
+                        },
+                    ]
+                )
+            }
+        )
+
+        data = await get_nearby_free_sites(59.3431180362708, 18.0456865578456, client=client)
+
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["Name"], "Working Stop")
+        self.assertEqual(data[0]["SiteId"], "2")
+
     async def test_fetch_realtime_departures_returns_raw_data(self):
         client = FakeClient(
             {
