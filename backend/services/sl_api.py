@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from typing import Any, Iterable, Optional
 
@@ -22,6 +23,19 @@ class SLApiError(Exception):
 
 def _get_api_key(name: str) -> str:
     return os.getenv(name, "")
+
+
+def _extract_site_items(data: Any) -> list[dict[str, Any]]:
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+
+    if isinstance(data, dict):
+        for key in ("sites", "results", "stopPlaces", "stop_areas", "items"):
+            value = data.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+
+    return []
 
 
 async def _fetch_json(
@@ -104,22 +118,83 @@ async def search_stops_free(
         require_api_key=False,
     )
 
-    if isinstance(data, list):
-        lower_query = query.lower().strip()
-        results: list[dict[str, Any]] = []
-        for item in data:
-            name = str(item.get("name", ""))
-            if lower_query in name.lower():
-                results.append(item)
-        return results
+    lower_query = query.lower().strip()
+    results: list[dict[str, Any]] = []
+    for item in _extract_site_items(data):
+        name = str(item.get("name", ""))
+        if lower_query in name.lower():
+            results.append(item)
 
-    for key in ("sites", "results", "stopPlaces", "stop_areas", "items"):
-        value = data.get(key)
-        if isinstance(value, list):
-            lower_query = query.lower().strip()
-            return [item for item in value if lower_query in str(item.get("name", "")).lower()]
+    return results
 
-    return []
+
+async def fetch_free_sites_catalog(
+    *,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    params = {
+        "expand": "true",
+    }
+    data = await _fetch_json(
+        SL_FREE_SITES_URL,
+        params,
+        client=client,
+        require_api_key=False,
+    )
+    return _extract_site_items(data)
+
+
+def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    earth_radius_m = 6371000.0
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return earth_radius_m * c
+
+
+async def get_nearby_free_sites(
+    latitude: float,
+    longitude: float,
+    *,
+    limit: int = 5,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    sites = await fetch_free_sites_catalog(client=client)
+    nearby_sites: list[dict[str, Any]] = []
+
+    for item in sites:
+        try:
+            lat_value = item.get("lat")
+            if lat_value is None:
+                lat_value = item.get("y")
+            lon_value = item.get("lon")
+            if lon_value is None:
+                lon_value = item.get("x")
+            if lat_value is None or lon_value is None:
+                continue
+
+            site_lat = float(lat_value)
+            site_lon = float(lon_value)
+        except (TypeError, ValueError):
+            continue
+
+        distance_meters = int(round(_haversine_meters(latitude, longitude, site_lat, site_lon)))
+        normalized = normalize_free_site_result(item)
+        normalized["distance_meters"] = distance_meters
+        nearby_sites.append(normalized)
+
+    nearby_sites.sort(key=lambda site: (site.get("distance_meters", 0), site.get("Name", "")))
+    return nearby_sites[: max(limit, 0)]
 
 
 async def fetch_realtime_departures(

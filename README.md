@@ -151,6 +151,16 @@ The frontend will automatically proxy API requests to the backend.
 
 ### SL API Documentation
 
+## Deployment User Story
+
+As a maintainer, I want to deploy the frontend to Vercel or another static host and keep the backend as a separate service, so I can publish the app without changing the codebase for each platform.
+
+What this means in practice:
+- Build the frontend as static output.
+- Point the frontend at the backend API through documented environment variables or proxy settings.
+- Keep the backend health endpoint available after deployment.
+- Reuse the same flow for Vercel, Netlify, Render, or similar platforms.
+
 ## Features to Add
 
 - Push notifications for specific lines

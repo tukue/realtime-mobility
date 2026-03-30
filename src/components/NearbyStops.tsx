@@ -1,22 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Site } from '../types';
 import { searchStops } from '../lib/stopSearch';
 
 interface NearbyStopsProps {
   startingPosition: string;
+  latitude?: number | null;
+  longitude?: number | null;
   onStopSelect: (site: Site) => void;
 }
 
-function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
+function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: NearbyStopsProps) {
   const [results, setResults] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const autoSelectedSiteId = useRef<string | null>(null);
+  const hasCoordinates = typeof latitude === 'number' && typeof longitude === 'number';
 
   useEffect(() => {
     const query = startingPosition.trim();
 
-    if (query.length < 2) {
+    if (!hasCoordinates && query.length < 2) {
       setResults([]);
       setShowResults(false);
       setError(null);
@@ -33,12 +37,22 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
       setError(null);
 
       try {
-        const sites = await searchStops(query);
+        const sites = hasCoordinates
+          ? await fetchNearbyStops(latitude, longitude)
+          : await searchStops(query);
         if (!isMounted) {
           return;
         }
-        setResults(sites.slice(0, 4));
+        setResults(sites.slice(0, 5));
         setShowResults(true);
+
+        if (hasCoordinates && sites.length > 0) {
+          const closestSite = sites[0];
+          if (closestSite.SiteId !== autoSelectedSiteId.current) {
+            autoSelectedSiteId.current = closestSite.SiteId;
+            onStopSelect(closestSite);
+          }
+        }
       } catch (fetchError) {
         console.error('Nearby stop search error:', fetchError);
         if (!isMounted) {
@@ -59,9 +73,9 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
       isMounted = false;
       window.clearTimeout(timeoutId);
     };
-  }, [startingPosition]);
+  }, [hasCoordinates, latitude, longitude, onStopSelect, startingPosition]);
 
-  if (startingPosition.trim().length < 2) {
+  if (!hasCoordinates && startingPosition.trim().length < 2) {
     return (
       <div style={styles.empty}>
         <div style={styles.emptyTitle}>Enter a starting position</div>
@@ -74,8 +88,10 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <div style={styles.label}>Nearby stops</div>
-          <div style={styles.title}>Closest stops for {startingPosition.trim()}</div>
+          <div style={styles.label}>{hasCoordinates ? 'Nearby stops near you' : 'Nearby stops'}</div>
+          <div style={styles.title}>
+            {hasCoordinates ? 'Closest stops near your location' : `Closest stops for ${startingPosition.trim()}`}
+          </div>
         </div>
         {loading && <div style={styles.loader}>Searching...</div>}
       </div>
@@ -86,7 +102,16 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
             <button key={site.SiteId} type="button" onClick={() => onStopSelect(site)} style={styles.resultButton}>
               <div style={styles.resultMain}>
                 <div style={styles.siteName}>{site.Name}</div>
-                <div style={styles.siteType}>{site.Type}</div>
+                <div style={styles.siteMeta}>
+                  <span style={styles.siteType}>{site.Type}</span>
+                  {typeof site.distance_meters === 'number' && (
+                    <span style={styles.distance}>
+                      {site.distance_meters < 1000
+                        ? `${site.distance_meters} m away`
+                        : `${(site.distance_meters / 1000).toFixed(1)} km away`}
+                    </span>
+                  )}
+                </div>
               </div>
               <span style={styles.cta}>View buses</span>
             </button>
@@ -170,6 +195,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.82rem',
     color: 'var(--muted)',
   },
+  siteMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap',
+  },
+  distance: {
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    color: '#a9d7ff',
+  },
   cta: {
     flexShrink: 0,
     padding: '6px 10px',
@@ -210,3 +246,20 @@ const styles: Record<string, React.CSSProperties> = {
 };
 
 export default NearbyStops;
+
+async function fetchNearbyStops(latitude: number | null | undefined, longitude: number | null | undefined): Promise<Site[]> {
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+    return [];
+  }
+
+  const response = await fetch(
+    `/api/nearby/stops?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&limit=5&source=free`
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.detail || 'Nearby stop request failed');
+  }
+
+  return data.ResponseData || [];
+}

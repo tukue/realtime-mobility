@@ -4,6 +4,7 @@ export interface Site {
   Type: string;
   X: string;
   Y: string;
+  distance_meters?: number;
 }
 
 export interface Departure {

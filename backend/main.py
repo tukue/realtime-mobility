@@ -5,7 +5,7 @@ import os
 
 load_dotenv()
 
-from routers import realtime, departures, situations
+from routers import realtime, departures, situations, nearby
 
 app = FastAPI(title="Stockholm Transit API")
 
@@ -18,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(realtime.router, prefix="/api/realtime", tags=["realtime"])
+app.include_router(nearby.router, prefix="/api/nearby", tags=["nearby"])
 app.include_router(departures.router, prefix="/api/departures", tags=["departures"])
 app.include_router(situations.router, prefix="/api/situations", tags=["situations"])
 
