@@ -9,6 +9,11 @@ const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
 const STARTING_LOCATION_KEY = 'realtime-mobility.starting-location';
 const MAX_RECENTS = 4;
 
+type GeoLocation = {
+  latitude: number;
+  longitude: number;
+};
+
 function loadRecentSites(): Site[] {
   try {
     const stored = window.localStorage.getItem(RECENT_SITES_KEY);
@@ -31,6 +36,9 @@ function loadRecentSites(): Site[] {
 function App() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [startingLocation, setStartingLocation] = useState('');
+  const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
@@ -99,6 +107,45 @@ function App() {
     });
   };
 
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Your browser does not support location access. Use the manual input instead.');
+      return;
+    }
+
+    setGeoLoading(true);
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGeoLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setGeoLoading(false);
+      },
+      (error) => {
+        setGeoLocation(null);
+        setGeoLoading(false);
+        setGeoError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location permission was denied. Use the manual starting position instead.'
+            : 'Could not read your location right now. Use the manual starting position instead.'
+        );
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000,
+      }
+    );
+  };
+
+  const handleUseManualInput = () => {
+    setGeoLocation(null);
+    setGeoError(null);
+  };
+
   return (
     <div style={styles.shell}>
       <div style={styles.glowLeft} />
@@ -145,8 +192,25 @@ function App() {
               <div style={styles.helperText}>
                 This MVP uses manual input first. We can add live location later if we need it.
               </div>
+              <div style={styles.locationActions}>
+                <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
+                  {geoLoading ? 'Locating...' : geoLocation ? 'Refresh my location' : 'Use my location'}
+                </button>
+                {geoLocation && (
+                  <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
+                    Use manual input
+                  </button>
+                )}
+              </div>
+              {geoLocation && <div style={styles.locationStatus}>Using your live location for nearby stops.</div>}
+              {geoError && <div style={styles.locationError}>{geoError}</div>}
               <div style={styles.nearbyWrap}>
-                <NearbyStops startingPosition={startingLocation} onStopSelect={handleSiteSelect} />
+                <NearbyStops
+                  startingPosition={startingLocation}
+                  latitude={geoLocation?.latitude ?? null}
+                  longitude={geoLocation?.longitude ?? null}
+                  onStopSelect={handleSiteSelect}
+                />
               </div>
             </div>
 
@@ -371,6 +435,42 @@ const styles: Record<string, React.CSSProperties> = {
   },
   helperText: {
     color: 'var(--muted)',
+    fontSize: '0.88rem',
+    lineHeight: 1.5,
+  },
+  locationActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    marginTop: '12px',
+  },
+  locationButton: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    border: '1px solid rgba(104, 183, 255, 0.35)',
+    background: 'rgba(104, 183, 255, 0.14)',
+    color: '#c7e6ff',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  locationButtonSecondary: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    border: '1px solid var(--border)',
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: 'var(--text)',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  locationStatus: {
+    marginTop: '10px',
+    color: '#bdf7d5',
+    fontSize: '0.88rem',
+    fontWeight: 700,
+  },
+  locationError: {
+    marginTop: '10px',
+    color: '#ffd2d2',
     fontSize: '0.88rem',
     lineHeight: 1.5,
   },

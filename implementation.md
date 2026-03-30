@@ -39,18 +39,19 @@ Turn the current Stockholm transit checker into a flow where a user can provide 
 - Optional Supabase favorites fallback
 - Transit-focused design doc
 - Manual starting-position flow
+- Geolocation capture for nearby stops
+- Nearby stop endpoint with distance ranking
 - Shared stop-search helper
 - Basic GitHub Actions CI for frontend build and backend unit tests
 - Review fixes for mounted async cleanup and safe localStorage loading
 
 ### In Progress
-- Nearby stops panel using typed starting-position input
+- Nearby buses for the nearest stops
 - UI wording and documentation cleanup for the nearby flow
 
 ### Next Up
-- Add backend support for true nearby stop lookup and distance ranking
 - Render live buses for the nearest stops
-- Keep geolocation as a later enhancement
+- Add clearer fallback states for denied location permissions
 
 ## Workstreams
 
@@ -69,17 +70,17 @@ Acceptance criteria:
 - The app stays usable without browser location permissions
 - The first version uses typed stop/station/area input instead of GPS
 
-### 2. Geolocation Later
+### 2. Geolocation Capture
 
-Goal: defer live location until the MVP is validated.
+Goal: capture live location as an optional input for nearby stops while keeping manual fallback.
 
 Tasks:
-- Keep a `Use my location` enhancement in the backlog
-- Define the browser permission flow and fallback behavior for later
+- Keep a `Use my location` action in the UI
+- Define the browser permission flow and fallback behavior
 
 Acceptance criteria:
-- The MVP does not depend on geolocation
-- Location-based input can be added later without rewriting the core flow
+- The app can use browser location when available
+- Manual starting-position input still works when location is unavailable
 
 ### 3. Nearby Stop Lookup
 
@@ -197,10 +198,10 @@ Use this section for follow-up updates as work lands.
 | Task | Status | Notes |
 | --- | --- | --- |
 | Starting position capture | Done | Manual stop/station/area input is the MVP path |
-| Geolocation capture | Deferred | Add later after MVP validation |
-| Nearby stop endpoint | Deferred | MVP uses the existing stop search API for now |
-| Nearby bus cards | In progress | Nearby stops panel shows typed-input matches, but not geo-ranked nearby buses yet |
-| Error handling | In progress | Search and empty states are covered; geo/backend fallback still needs the true nearby flow |
+| Geolocation capture | Done | Optional browser location now feeds the nearby stops panel with manual fallback. |
+| Nearby stop endpoint | Done | Returns ranked nearby stops by distance from the provided coordinates. |
+| Nearby bus cards | In progress | The nearby panel can use geolocation, but the live-bus board for nearest stops still needs dedicated results. |
+| Error handling | In progress | Permission denial and manual fallback are handled, but the geo nearby flow still needs richer states. |
 | Tests | Done | Backend unit tests and GitHub Actions CI cover the current app shell |
 | Docs update | Done | Design, README, and implementation notes now match the manual-input MVP |
 
