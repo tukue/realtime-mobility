@@ -4,23 +4,52 @@
 
 Turn the current Stockholm transit checker into a flow where a user can provide a starting position manually and quickly see the nearest live buses around it.
 
+## Application Structure
+
+### Frontend
+- `src/App.tsx` owns the page shell, local persistence for recent stops, backend health polling, and the main layout.
+- `src/components/SearchBar.tsx` handles stop/station search.
+- `src/components/NearbyStops.tsx` reuses the same stop lookup API for the manual starting-position flow.
+- `src/components/stopBoard.tsx` renders the live board and transport-mode filters.
+- `src/components/FavoritesList.tsx` loads saved stops when Supabase is configured.
+- `src/lib/stopSearch.ts` is the shared stop-search helper used by search and nearby panels.
+
+### Backend
+- `backend/main.py` wires the FastAPI app and routers.
+- `backend/routers/realtime.py` serves stop search and live updates.
+- `backend/routers/departures.py` serves normalized live-update responses.
+- `backend/routers/situations.py` serves disruption alerts.
+- `backend/services/sl_api.py` contains the SL API client, payload normalization, and error handling.
+
+### Data Flow
+1. The user searches for a stop or enters a starting position.
+2. The frontend calls the shared search helper, which hits the backend search endpoint.
+3. The selected stop is stored locally as a recent stop.
+4. The stop board fetches live updates for the selected stop.
+5. Backend health is polled separately so the UI can show whether the API is reachable.
+
 ## Current Status
 
 ### Done
 - Main transit dashboard shell
 - Live stop search
-- Multi-modal departure board
+- Multi-modal live board
 - Recent stops saved locally
 - Backend health indicator
 - Optional Supabase favorites fallback
 - Transit-focused design doc
+- Manual starting-position flow
+- Shared stop-search helper
+- Basic GitHub Actions CI for frontend build and backend unit tests
+- Review fixes for mounted async cleanup and safe localStorage loading
 
 ### In Progress
-- Manual starting-stop MVP flow
+- Nearby stops panel using typed starting-position input
+- UI wording and documentation cleanup for the nearby flow
 
 ### Next Up
-- Add backend support for nearby stop lookup
-- Render nearby stops and their live buses
+- Add backend support for true nearby stop lookup and distance ranking
+- Render live buses for the nearest stops
 - Keep geolocation as a later enhancement
 
 ## Workstreams
@@ -71,7 +100,7 @@ Acceptance criteria:
 Goal: show live buses for the nearest stop or stops.
 
 Tasks:
-- Fetch departures for the top 1 to 3 nearest stops
+- Fetch live updates for the top 1 to 3 nearest stops
 - Group results by stop
 - Show the nearest stop first
 - Preserve the current selected-stop board behavior
@@ -115,7 +144,7 @@ Goal: reduce risk before shipping the nearby-bus feature.
 Tasks:
 - Add backend tests for distance sorting and empty results
 - Add frontend tests for location permission denial and render states
-- Verify the existing search and departure board still work
+- Verify the existing search and live board still work
 
 Acceptance criteria:
 - Core happy path and fallback paths are covered
@@ -170,10 +199,10 @@ Use this section for follow-up updates as work lands.
 | Starting position capture | Done | Manual stop/station/area input is the MVP path |
 | Geolocation capture | Deferred | Add later after MVP validation |
 | Nearby stop endpoint | Deferred | MVP uses the existing stop search API for now |
-| Nearby bus cards | In progress | Nearby stops panel now shows the closest matches from typed input |
-| Error handling | Not started | Must preserve stop-search fallback |
-| Tests | Not started | Add coverage after API and UI are wired |
-| Docs update | In progress | Design plan exists; implementation notes started here |
+| Nearby bus cards | In progress | Nearby stops panel shows typed-input matches, but not geo-ranked nearby buses yet |
+| Error handling | In progress | Search and empty states are covered; geo/backend fallback still needs the true nearby flow |
+| Tests | Done | Backend unit tests and GitHub Actions CI cover the current app shell |
+| Docs update | Done | Design, README, and implementation notes now match the manual-input MVP |
 
 ## Follow-up Cadence
 

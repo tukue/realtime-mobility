@@ -2,11 +2,11 @@
 
 ## 1. Product Goal
 
-Build a fast, mobile-friendly app for checking Stockholm public transport departures with as little friction as possible.
+Build a fast, mobile-friendly app for checking Stockholm public transport live updates with as little friction as possible.
 
 The app should let a rider:
 - Search for a stop or station quickly
-- See live departures across transport modes
+- See live updates across transport modes
 - Reopen recent and saved stops in one tap
 - Understand whether the backend and live data are currently healthy
 
@@ -14,8 +14,8 @@ This is not a full journey planner. It is a focused “check transit now” tool
 
 ## 2. Core Use Cases
 
-### 2.1 Quick departure check
-User opens the app, searches for a stop, and immediately sees live departures.
+### 2.1 Quick live-board check
+User opens the app, searches for a stop, and immediately sees live updates.
 
 ### 2.2 Repeat stop access
 User returns to the app and reopens a recently used stop or favorite without searching again.
@@ -30,7 +30,7 @@ User can tell whether the backend is reachable and whether live data is loading 
 
 1. Speed first
 - Search and results should feel immediate.
-- The departure board should auto-refresh without user intervention.
+- The live board should auto-refresh without user intervention.
 
 2. Low friction
 - Don’t require account creation for the core experience.
@@ -50,13 +50,13 @@ User can tell whether the backend is reachable and whether live data is loading 
 - Search panel
 - Recent stops panel
 - Favorites panel
-- Live departure board
+- Live board
 - Backend health indicator
 
 ### 4.2 Data hierarchy
 1. Selected stop
-2. Live departure modes
-3. Individual departures
+2. Live board modes
+3. Individual updates
 4. Delay or deviation status
 
 ## 5. Screen Layout
@@ -81,7 +81,7 @@ Contains:
 - Refresh controls
 - Backend/last-updated metadata
 - Transport mode filters
-- Live departures grouped by mode
+- Live updates grouped by mode
 
 ## 6. Interaction Design
 
@@ -104,12 +104,12 @@ Contains:
 - Favorites are loaded from Supabase when configured.
 - If Supabase variables are missing, the favorites area explains that the app still works without cloud storage.
 
-### 6.5 Departure filtering
+### 6.5 Live-board filtering
 - Default view shows all live modes.
 - User can filter to a single mode when they only care about one transit type.
 
 ### 6.6 Refresh
-- Departures refresh automatically on a timer.
+- Live updates refresh automatically on a timer.
 - A manual refresh button is always available.
 
 ## 7. Visual Direction
