@@ -7,6 +7,7 @@ from services.sl_api import (
     fetch_realtime_departures_free,
     fetch_service_alerts,
     fetch_service_alerts_free,
+    get_nearby_free_sites,
     normalize_departure_payload,
     normalize_free_departure_payload,
     normalize_free_site_result,
@@ -83,6 +84,33 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(data[0]["name"], "Stockholm Odenplan")
         self.assertEqual(client.calls[0]["params"]["expand"], "true")
+
+    async def test_get_nearby_free_sites_sorts_by_distance(self):
+        client = FakeClient(
+            {
+                "https://transport.integration.sl.se/v1/sites": FakeResponse(
+                    [
+                        {
+                            "id": 1,
+                            "name": "Far Stop",
+                            "lat": 59.0,
+                            "lon": 18.2,
+                        },
+                        {
+                            "id": 2,
+                            "name": "Near Stop",
+                            "lat": 59.3435,
+                            "lon": 18.0459,
+                        },
+                    ]
+                )
+            }
+        )
+
+        data = await get_nearby_free_sites(59.3431180362708, 18.0456865578456, client=client)
+
+        self.assertEqual(data[0]["Name"], "Near Stop")
+        self.assertIn("distance_meters", data[0])
 
     async def test_fetch_realtime_departures_returns_raw_data(self):
         client = FakeClient(

@@ -1,6 +1,6 @@
 import unittest
 
-from routers import departures, realtime, situations
+from routers import departures, nearby, realtime, situations
 
 
 class RouteTests(unittest.IsolatedAsyncioTestCase):
@@ -71,6 +71,29 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["alerts"][0]["message"], "Delay")
+
+    async def test_nearby_route_uses_free_source(self):
+        async def fake_nearby(lat, lon, limit=5, client=None):
+            return [
+                {
+                    "SiteId": "1079",
+                    "Name": "Stockholm Odenplan",
+                    "Type": "Stop",
+                    "X": "18.0456865578456",
+                    "Y": "59.3431180362708",
+                    "distance_meters": 123,
+                }
+            ]
+
+        original = nearby.get_nearby_free_sites
+        nearby.get_nearby_free_sites = fake_nearby
+        try:
+            payload = await nearby.get_nearby_stops(lat=59.34, lon=18.04)
+        finally:
+            nearby.get_nearby_free_sites = original
+
+        self.assertEqual(payload["ResponseData"][0]["Name"], "Stockholm Odenplan")
+        self.assertEqual(payload["ResponseData"][0]["distance_meters"], 123)
 
 
 if __name__ == "__main__":
