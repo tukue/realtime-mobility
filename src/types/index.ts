@@ -13,6 +13,8 @@ export interface Departure {
   expected_datetime: string;
   journey_direction: number;
   group_of_line: string;
+  transport_mode?: string;
+  has_deviations?: boolean;
   deviations: any[];
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Site } from '../types';
+import { Site, FavoriteStop } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface FavoritesListProps {
@@ -7,13 +7,23 @@ interface FavoritesListProps {
 }
 
 function FavoritesList({ onSiteSelect }: FavoritesListProps) {
-  const [favorites, setFavorites] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteStop[]>([]);
+  const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
+    if (!supabaseConfigured) {
+      setFavorites([]);
+      return;
+    }
+
     loadFavorites();
-  }, []);
+  }, [supabaseConfigured]);
 
   const loadFavorites = async () => {
+    if (!supabase) {
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('favorite_stops')
@@ -27,7 +37,7 @@ function FavoritesList({ onSiteSelect }: FavoritesListProps) {
     }
   };
 
-  const handleFavoriteClick = (favorite: any) => {
+  const handleFavoriteClick = (favorite: FavoriteStop) => {
     onSiteSelect({
       SiteId: favorite.site_id,
       Name: favorite.site_name,
@@ -41,7 +51,11 @@ function FavoritesList({ onSiteSelect }: FavoritesListProps) {
     return (
       <div style={styles.empty}>
         <div style={styles.emptyTitle}>No saved stops yet</div>
-        <div style={styles.emptyText}>Tap the save action later to pin frequent dinner stops here.</div>
+        <div style={styles.emptyText}>
+          {supabaseConfigured
+            ? 'Tap the save action later to pin frequent stops here.'
+            : 'Favorites storage is not configured in this deployment, but recent stops still work locally.'}
+        </div>
       </div>
     );
   }

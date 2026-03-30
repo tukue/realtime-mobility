@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Site, DepartureData, Departure } from '../types';
 import DepartureCard from './DepartureCard';
 
@@ -7,14 +7,26 @@ interface StopBoardProps {
   startingLocation?: string;
 }
 
+type ModeKey = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
+
+const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string; key: keyof DepartureData }> = {
+  buses: { label: 'Bus', color: '#d91f2a', key: 'buses' },
+  metros: { label: 'Metro', color: '#0078d4', key: 'metros' },
+  trains: { label: 'Train', color: '#6b5cff', key: 'trains' },
+  trams: { label: 'Tram', color: '#f08d22', key: 'trams' },
+  ships: { label: 'Ship', color: '#0d8f8f', key: 'ships' },
+};
+
 function StopBoard({ site, startingLocation }: StopBoardProps) {
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [activeMode, setActiveMode] = useState<ModeKey>('all');
 
   useEffect(() => {
+    setActiveMode('all');
     fetchDepartures(false);
     const interval = setInterval(() => {
       fetchDepartures(true);
@@ -51,15 +63,45 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     }
   };
 
-  const renderDepartures = (items: Departure[], color: string) => {
+  const modeSections = useMemo(() => {
+    const current = departures ?? {
+      buses: [],
+      metros: [],
+      trains: [],
+      trams: [],
+      ships: [],
+    };
+
+    return (Object.keys(MODE_META) as Array<Exclude<ModeKey, 'all'>>).map((mode) => {
+      const meta = MODE_META[mode];
+      const items = current[meta.key] ?? [];
+
+      return {
+        mode,
+        label: meta.label,
+        color: meta.color,
+        items,
+        count: items.length,
+      };
+    });
+  }, [departures]);
+
+  const visibleSections =
+    activeMode === 'all'
+      ? modeSections.filter((section) => section.count > 0)
+      : modeSections.filter((section) => section.mode === activeMode);
+
+  const totalDepartures = modeSections.reduce((sum, section) => sum + section.count, 0);
+
+  const renderDepartures = (items: Departure[], color: string, label: string) => {
     if (!items || items.length === 0) return null;
 
     return (
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
           <div>
-            <h3 style={styles.categoryTitle}>Bus arrivals</h3>
-            <p style={styles.sectionSubtitle}>Next departures from this stop</p>
+            <h3 style={styles.categoryTitle}>{label} buses</h3>
+            <p style={styles.sectionSubtitle}>Next buses from this stop</p>
           </div>
 
           <span style={{ ...styles.routeBadge, backgroundColor: color }}>Live</span>
@@ -67,7 +109,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
 
         <div style={styles.departureGrid}>
           {items.slice(0, 6).map((departure, index) => (
-            <DepartureCard key={index} departure={departure} color={color} />
+            <DepartureCard key={`${departure.line_number}-${departure.destination}-${index}`} departure={departure} color={color} />
           ))}
         </div>
       </section>
@@ -78,8 +120,8 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     return (
       <div style={styles.container}>
         <div style={styles.loadingWrap}>
-          <div style={styles.loadingTitle}>Loading live bus arrivals</div>
-          <div style={styles.loadingText}>Fetching the next buses for {site.Name}.</div>
+          <div style={styles.loadingTitle}>Loading live buses</div>
+          <div style={styles.loadingText}>Fetching the next transport options for {site.Name}.</div>
         </div>
       </div>
     );
@@ -99,19 +141,15 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     );
   }
 
-  const busDepartures = departures?.buses ?? [];
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
-          {(startingLocation || site.Name) && (
-            <div style={styles.routeLine}>
-              {startingLocation ? startingLocation : 'Your starting point'} to {site.Name}
-            </div>
-          )}
+          <div style={styles.routeLine}>
+            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live buses for ${site.Name}`}
+          </div>
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
             <span style={styles.metaChip}>{refreshing ? 'Refreshing now' : 'Auto refresh on'}</span>
@@ -120,6 +158,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
                 ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                 : 'Waiting for first update'}
             </span>
+            <span style={styles.metaChip}>{totalDepartures} live buses</span>
           </div>
         </div>
 
@@ -128,11 +167,42 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
         </button>
       </div>
 
-      {departures && renderDepartures(busDepartures, '#d91f2a')}
+      <div style={styles.modeBar}>
+        <button
+          type="button"
+          onClick={() => setActiveMode('all')}
+          style={activeMode === 'all' ? { ...styles.modeButton, ...styles.modeButtonActive } : styles.modeButton}
+        >
+          All
+        </button>
 
-      {departures && !busDepartures.length && (
+        {(Object.keys(MODE_META) as Array<Exclude<ModeKey, 'all'>>).map((mode) => {
+          const section = modeSections.find((item) => item.mode === mode);
+          const isActive = activeMode === mode;
+
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setActiveMode(mode)}
+              style={isActive ? { ...styles.modeButton, ...styles.modeButtonActive } : styles.modeButton}
+            >
+              {MODE_META[mode].label}
+              <span style={styles.modeCount}>{section?.count ?? 0}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {departures && visibleSections.length > 0 && (
+        <div style={styles.sectionStack}>
+          {visibleSections.map((section) => renderDepartures(section.items, section.color, section.label))}
+        </div>
+      )}
+
+      {departures && visibleSections.length === 0 && (
         <div style={styles.noDepartures}>
-          No live bus departures are available for this stop right now.
+          No live buses are available for this mode right now.
         </div>
       )}
     </div>
@@ -205,6 +275,45 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.82rem',
     fontWeight: 700,
   },
+  modeBar: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    marginBottom: '18px',
+  },
+  modeButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 14px',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    color: 'var(--muted)',
+    border: '1px solid var(--border)',
+    fontSize: '0.9rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  modeButtonActive: {
+    background: 'rgba(104, 183, 255, 0.14)',
+    color: 'var(--text)',
+    borderColor: 'rgba(104, 183, 255, 0.35)',
+  },
+  modeCount: {
+    minWidth: '20px',
+    height: '20px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: 'inherit',
+    fontSize: '0.75rem',
+  },
+  sectionStack: {
+    display: 'grid',
+    gap: '22px',
+  },
   section: {
     display: 'grid',
     gap: '16px',
@@ -226,7 +335,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.92rem',
   },
   routeBadge: {
-    padding: '8px 10px',
+    padding: '8px 12px',
     borderRadius: '999px',
     color: 'white',
     fontSize: '0.78rem',
@@ -236,59 +345,56 @@ const styles: Record<string, React.CSSProperties> = {
   },
   departureGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '14px',
+    gap: '12px',
   },
   loadingWrap: {
-    minHeight: '420px',
     display: 'grid',
+    gap: '8px',
+    minHeight: '300px',
     alignContent: 'center',
-    justifyItems: 'start',
-    gap: '12px',
   },
   loadingTitle: {
     fontFamily: "'Space Grotesk', sans-serif",
     fontSize: '1.8rem',
     fontWeight: 700,
+    color: 'var(--text)',
   },
   loadingText: {
     color: 'var(--muted)',
-    fontSize: '1rem',
+    lineHeight: 1.6,
   },
   errorCard: {
-    minHeight: '420px',
     display: 'grid',
-    alignContent: 'center',
-    justifyItems: 'start',
     gap: '12px',
+    alignContent: 'center',
+    minHeight: '280px',
+    padding: '12px',
   },
   errorTitle: {
-    fontSize: '1.5rem',
+    fontSize: '1.2rem',
     fontWeight: 800,
     color: 'var(--text)',
   },
   errorText: {
-    color: 'var(--danger)',
+    color: '#ffc9c9',
     lineHeight: 1.6,
   },
   retryButton: {
-    marginTop: '8px',
+    justifySelf: 'start',
     padding: '12px 16px',
-    border: 'none',
     borderRadius: '14px',
-    background: 'var(--accent)',
-    color: '#162033',
+    border: '1px solid rgba(255, 122, 122, 0.28)',
+    background: 'rgba(255, 122, 122, 0.12)',
+    color: '#ffd2d2',
     fontWeight: 800,
   },
   noDepartures: {
-    marginTop: '18px',
-    padding: '24px',
+    marginTop: '10px',
+    padding: '18px',
     borderRadius: '18px',
-    background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid var(--border)',
+    border: '1px dashed rgba(255, 255, 255, 0.16)',
     color: 'var(--muted)',
-    fontSize: '0.98rem',
-    lineHeight: 1.6,
+    background: 'rgba(255, 255, 255, 0.04)',
   },
 };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Site } from '../types';
+import { searchStops } from '../lib/stopSearch';
 
 interface SearchBarProps {
   onSiteSelect: (site: Site) => void;
@@ -20,32 +21,42 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
       return;
     }
 
+    let isMounted = true;
     const timeoutId = setTimeout(async () => {
+      if (!isMounted) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
+
       try {
-        const response = await fetch(
-          `/api/realtime/search?query=${encodeURIComponent(query)}&source=free`
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data?.detail || 'Search request failed');
+        const sites = await searchStops(query);
+        if (!isMounted) {
+          return;
         }
-
-        setResults(data.ResponseData || []);
+        setResults(sites);
         setShowResults(true);
       } catch (error) {
         console.error('Search error:', error);
+        if (!isMounted) {
+          return;
+        }
         setResults([]);
         setShowResults(true);
         setError(error instanceof Error ? error.message : 'Search failed');
       } finally {
+        if (!isMounted) {
+          return;
+        }
         setLoading(false);
       }
     }, 300);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [query]);
 
   const handleSelect = (site: Site) => {

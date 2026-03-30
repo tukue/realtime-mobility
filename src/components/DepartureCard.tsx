@@ -7,11 +7,15 @@ interface DepartureCardProps {
 }
 
 function DepartureCard({ departure, color }: DepartureCardProps) {
-  const hasDeviations = departure.deviations && departure.deviations.length > 0;
+  const hasDeviations = departure.has_deviations || (departure.deviations && departure.deviations.length > 0);
+  const transportMode = departure.transport_mode ? departure.transport_mode.toUpperCase() : 'LIVE';
 
   return (
     <div style={styles.card}>
-      <div style={{ ...styles.lineNumber, backgroundColor: color }}>{departure.line_number}</div>
+      <div style={{ ...styles.lineNumber, backgroundColor: color }}>
+        <span>{departure.line_number}</span>
+        <span style={styles.modeTag}>{transportMode}</span>
+      </div>
 
       <div style={styles.info}>
         <div style={styles.topRow}>
@@ -43,13 +47,22 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: '56px',
     height: '56px',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: '2px',
     borderRadius: '16px',
     color: 'white',
     fontWeight: '800',
-    fontSize: '1.1rem',
+    fontSize: '1rem',
     letterSpacing: '-0.02em',
+  },
+  modeTag: {
+    fontSize: '0.58rem',
+    fontWeight: 800,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    opacity: 0.92,
   },
   info: {
     flex: 1,
