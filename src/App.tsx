@@ -1,12 +1,69 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import { Site } from './types';
 
+const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
+const MAX_RECENTS = 4;
+
 function App() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [startingLocation, setStartingLocation] = useState('');
+  const [recentSites, setRecentSites] = useState<Site[]>([]);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(RECENT_SITES_KEY);
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setRecentSites(parsed.slice(0, MAX_RECENTS));
+      }
+    } catch (error) {
+      console.error('Failed to load recent stops:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('/api/health');
+        if (!cancelled) {
+          setBackendStatus(response.ok ? 'online' : 'offline');
+        }
+      } catch {
+        if (!cancelled) {
+          setBackendStatus('offline');
+        }
+      }
+    };
+
+    checkBackend();
+    const interval = window.setInterval(checkBackend, 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const handleSiteSelect = (site: Site) => {
+    setSelectedSite(site);
+    setRecentSites((current) => {
+      const next = [site, ...current.filter((item) => item.SiteId !== site.SiteId)].slice(0, MAX_RECENTS);
+      try {
+        window.localStorage.setItem(RECENT_SITES_KEY, JSON.stringify(next));
+      } catch (error) {
+        console.error('Failed to save recent stops:', error);
+      }
+      return next;
+    });
+  };
 
   return (
     <div style={styles.shell}>
@@ -15,16 +72,19 @@ function App() {
 
       <main style={styles.container}>
         <header style={styles.header}>
-          <div style={styles.kicker}>Stockholm bus arrivals</div>
+          <div style={styles.kicker}>Stockholm public transport</div>
           <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
           <p style={styles.subtitle}>
-            Search a stop or station first, then add a starting location if you want to compare the trip.
+            Search a stop or station, save the ones you use often, and keep the board open while you move.
           </p>
 
           <div style={styles.pills}>
-            <span style={styles.pill}>Bus stop</span>
+            <span style={styles.pill}>All transport modes</span>
             <span style={styles.pill}>30-second refresh</span>
-            <span style={styles.pillAccent}>Service alerts included</span>
+            <span style={styles.pillAccent}>Recent stops saved locally</span>
+            <span style={backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger}>
+              Backend {backendStatus}
+            </span>
           </div>
         </header>
 
@@ -32,7 +92,7 @@ function App() {
           <aside style={styles.sidebar}>
             <div style={styles.card}>
               <div style={styles.cardLabel}>Find a stop</div>
-              <SearchBar onSiteSelect={setSelectedSite} />
+              <SearchBar onSiteSelect={handleSiteSelect} />
             </div>
 
             <div style={styles.card}>
@@ -54,16 +114,39 @@ function App() {
             </div>
 
             <div style={styles.card}>
+              <div style={styles.cardLabel}>Recent stops</div>
+              {recentSites.length > 0 ? (
+                <div style={styles.stack}>
+                  {recentSites.map((site) => (
+                    <button
+                      key={site.SiteId}
+                      type="button"
+                      onClick={() => handleSiteSelect(site)}
+                      style={styles.recentButton}
+                    >
+                      <span style={styles.recentName}>{site.Name}</span>
+                      <span style={styles.recentMeta}>{site.Type}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={styles.emptyMini}>
+                  Your last searched stops will appear here so you can reopen them in one tap.
+                </div>
+              )}
+            </div>
+
+            <div style={styles.card}>
               <div style={styles.cardLabel}>Saved stops</div>
-              <FavoritesList onSiteSelect={setSelectedSite} />
+              <FavoritesList onSiteSelect={handleSiteSelect} />
             </div>
 
             <div style={styles.card}>
               <div style={styles.cardLabel}>How it works</div>
               <ol style={styles.steps}>
-                <li>Search for a bus stop or pick a favourite.</li>
-                <li>Open the stop to see the next arrivals.</li>
-                <li>Watch the board refresh automatically.</li>
+                <li>Search for a stop or pick a favourite.</li>
+                <li>Open the stop to see all live buses.</li>
+                <li>Switch modes or refresh the board while you travel.</li>
               </ol>
             </div>
           </aside>
@@ -74,9 +157,9 @@ function App() {
             ) : (
               <div style={styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop to see live bus arrivals.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop to see live buses.</h2>
                 <p style={styles.emptyText}>
-                  The board will show the next buses, arrival times, and any service issues once you choose a stop.
+                  The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
                   Try a central stop like Skanstull, Odenplan, or Stureplan, then add your starting location if needed.
@@ -177,6 +260,33 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.92rem',
     fontWeight: 700,
   },
+  pillSuccess: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    background: 'rgba(113, 211, 155, 0.14)',
+    color: '#bdf7d5',
+    border: '1px solid rgba(113, 211, 155, 0.28)',
+    fontSize: '0.92rem',
+    fontWeight: 700,
+  },
+  pillNeutral: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    fontSize: '0.92rem',
+    fontWeight: 700,
+  },
+  pillDanger: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    background: 'rgba(255, 122, 122, 0.12)',
+    color: '#ffd2d2',
+    border: '1px solid rgba(255, 122, 122, 0.25)',
+    fontSize: '0.92rem',
+    fontWeight: 700,
+  },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)',
@@ -225,6 +335,40 @@ const styles: Record<string, React.CSSProperties> = {
   helperText: {
     color: 'var(--muted)',
     fontSize: '0.88rem',
+    lineHeight: 1.5,
+  },
+  stack: {
+    display: 'grid',
+    gap: '10px',
+  },
+  recentButton: {
+    width: '100%',
+    padding: '14px 16px',
+    display: 'grid',
+    gap: '4px',
+    textAlign: 'left',
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: '18px',
+    cursor: 'pointer',
+    transition: 'transform 0.2s, background 0.2s, border-color 0.2s',
+  },
+  recentName: {
+    fontSize: '0.96rem',
+    fontWeight: 800,
+  },
+  recentMeta: {
+    fontSize: '0.82rem',
+    color: 'var(--muted)',
+  },
+  emptyMini: {
+    padding: '14px 16px',
+    borderRadius: '18px',
+    border: '1px dashed rgba(255, 255, 255, 0.14)',
+    background: 'rgba(255, 255, 255, 0.04)',
+    color: 'var(--muted)',
+    fontSize: '0.92rem',
     lineHeight: 1.5,
   },
   steps: {
