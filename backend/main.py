@@ -27,6 +27,16 @@ app.include_router(nearby.router, prefix="/api/nearby", tags=["nearby"])
 app.include_router(departures.router, prefix="/api/departures", tags=["departures"])
 app.include_router(situations.router, prefix="/api/situations", tags=["situations"])
 
+
+def _safe_frontend_path(requested_path: str) -> Path | None:
+    candidate = (FRONTEND_DIST_DIR / requested_path).resolve()
+    try:
+        candidate.relative_to(FRONTEND_DIST_DIR)
+    except ValueError:
+        return None
+    return candidate
+
+
 @app.get("/")
 async def root():
     index_file = FRONTEND_DIST_DIR / "index.html"
@@ -45,8 +55,8 @@ async def spa_fallback(full_path: str):
 
     index_file = FRONTEND_DIST_DIR / "index.html"
     if index_file.exists():
-        asset_path = FRONTEND_DIST_DIR / full_path
-        if full_path and asset_path.is_file():
+        asset_path = _safe_frontend_path(full_path)
+        if asset_path and asset_path.is_file():
             return FileResponse(asset_path)
         return FileResponse(index_file)
 

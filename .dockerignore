@@ -3,5 +3,9 @@ dist
 backend/venv
 backend/__pycache__
 backend/*.log
+.env
+.env.*
+backend/.env
+backend/.env.*
 .git
 .idea
