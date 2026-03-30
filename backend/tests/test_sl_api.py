@@ -18,7 +18,7 @@ from services.sl_api import (
 )
 
 
-class FakeResponse:
+class MockResponse:
     def __init__(self, payload, status_code=200):
         self._payload = payload
         self.status_code = status_code
@@ -53,7 +53,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_search_stops_passes_query_and_returns_data(self):
         client = FakeClient(
             {
-                "https://journeyplanner.integration.sl.se/v1/typeahead.json": FakeResponse(
+                "https://journeyplanner.integration.sl.se/v1/typeahead.json": MockResponse(
                     {"ResponseData": [{"SiteId": "123", "Name": "Odenplan"}]}
                 )
             }
@@ -67,7 +67,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_search_stops_free_returns_sites_without_api_key(self):
         client = FakeClient(
             {
-                "https://transport.integration.sl.se/v1/sites": FakeResponse(
+                "https://transport.integration.sl.se/v1/sites": MockResponse(
                     [
                         {
                             "id": 1079,
@@ -88,7 +88,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_get_nearby_free_sites_sorts_by_distance(self):
         client = FakeClient(
             {
-                "https://transport.integration.sl.se/v1/sites": FakeResponse(
+                "https://transport.integration.sl.se/v1/sites": MockResponse(
                     [
                         {
                             "id": 1,
@@ -115,7 +115,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_get_nearby_free_sites_skips_missing_coordinates(self):
         client = FakeClient(
             {
-                "https://transport.integration.sl.se/v1/sites": FakeResponse(
+                "https://transport.integration.sl.se/v1/sites": MockResponse(
                     [
                         {
                             "id": 1,
@@ -143,7 +143,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_realtime_departures_returns_raw_data(self):
         client = FakeClient(
             {
-                "https://api.sl.se/api2/realtimedeparturesV4.json": FakeResponse(
+                "https://api.sl.se/api2/realtimedeparturesV4.json": MockResponse(
                     {
                         "StatusCode": 0,
                         "ResponseData": {
@@ -170,7 +170,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_realtime_departures_free_returns_payload(self):
         client = FakeClient(
             {
-                "https://transport.integration.sl.se/v1/sites/9117/departures": FakeResponse(
+                "https://transport.integration.sl.se/v1/sites/9117/departures": MockResponse(
                     {
                         "departures": [
                             {
@@ -197,7 +197,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_service_alerts_returns_normalized_alerts(self):
         client = FakeClient(
             {
-                "https://api.sl.se/api2/deviations.json": FakeResponse(
+                "https://api.sl.se/api2/deviations.json": MockResponse(
                     {
                         "StatusCode": 0,
                         "ResponseData": [{"Text": "Service change"}],
@@ -215,7 +215,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_service_alerts_free_returns_normalized_alerts(self):
         client = FakeClient(
             {
-                "https://deviations.integration.sl.se/v1/messages": FakeResponse(
+                "https://deviations.integration.sl.se/v1/messages": MockResponse(
                     [
                         {"message": "Service change", "importance": 5}
                     ]
@@ -232,7 +232,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_service_alerts_handles_no_data(self):
         client = FakeClient(
             {
-                "https://api.sl.se/api2/deviations.json": FakeResponse(
+                "https://api.sl.se/api2/deviations.json": MockResponse(
                     {"StatusCode": 1, "Message": "No alerts"}
                 )
             }
