@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Site } from '../types';
+import { searchStops } from '../lib/stopSearch';
 
 interface SearchBarProps {
   onSiteSelect: (site: Site) => void;
@@ -24,16 +25,8 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(
-          `/api/realtime/search?query=${encodeURIComponent(query)}&source=free`
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data?.detail || 'Search request failed');
-        }
-
-        setResults(data.ResponseData || []);
+        const sites = await searchStops(query);
+        setResults(sites);
         setShowResults(true);
       } catch (error) {
         console.error('Search error:', error);

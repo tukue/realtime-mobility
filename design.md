@@ -70,7 +70,7 @@ Contains:
 ### 5.2 Left sidebar
 Contains:
 - Search input
-- Optional starting location field
+- Optional manual starting location field
 - Recent stops
 - Favorites
 - Short usage hints
@@ -90,20 +90,25 @@ Contains:
 - Results appear in a dropdown.
 - Selecting a result updates the board immediately.
 
-### 6.2 Recent stops
+### 6.2 Starting location
+- The first version uses typed stop, station, or area input.
+- The app surfaces nearby matches from that text input.
+- Live geolocation is deferred to a later phase.
+
+### 6.3 Recent stops
 - Every selected stop is stored locally.
 - The app keeps only a small number of recent stops to reduce clutter.
 - Selecting a recent stop behaves the same as search results.
 
-### 6.3 Favorites
+### 6.4 Favorites
 - Favorites are loaded from Supabase when configured.
 - If Supabase variables are missing, the favorites area explains that the app still works without cloud storage.
 
-### 6.4 Departure filtering
+### 6.5 Departure filtering
 - Default view shows all live modes.
 - User can filter to a single mode when they only care about one transit type.
 
-### 6.5 Refresh
+### 6.6 Refresh
 - Departures refresh automatically on a timer.
 - A manual refresh button is always available.
 

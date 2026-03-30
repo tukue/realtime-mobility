@@ -79,6 +79,7 @@ MVP is considered successful when these targets are consistently met in producti
 - Search for stops and stations across Stockholm
 - Save favorite stops for quick access
 - Auto-refresh every 30 seconds
+- Use a manual starting position to surface nearby stops
 - Clean, modern UI with color-coded transport types
 
 ## Tech Stack

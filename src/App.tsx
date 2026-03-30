@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
+import NearbyStops from './components/NearbyStops';
 import { Site } from './types';
 
 const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
+const STARTING_LOCATION_KEY = 'realtime-mobility.starting-location';
 const MAX_RECENTS = 4;
 
 function App() {
@@ -26,6 +28,29 @@ function App() {
       console.error('Failed to load recent stops:', error);
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      const storedStartingLocation = window.localStorage.getItem(STARTING_LOCATION_KEY);
+      if (storedStartingLocation) {
+        setStartingLocation(storedStartingLocation);
+      }
+    } catch (error) {
+      console.error('Failed to load starting stop:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (startingLocation.trim()) {
+        window.localStorage.setItem(STARTING_LOCATION_KEY, startingLocation.trim());
+      } else {
+        window.localStorage.removeItem(STARTING_LOCATION_KEY);
+      }
+    } catch (error) {
+      console.error('Failed to save starting stop:', error);
+    }
+  }, [startingLocation]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,20 +121,23 @@ function App() {
             </div>
 
             <div style={styles.card}>
-              <div style={styles.cardLabel}>Starting location</div>
+              <div style={styles.cardLabel}>Manual starting position</div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
-                Optional
+                Type a stop, station, or area
               </label>
               <input
                 id="starting-location"
                 type="text"
                 value={startingLocation}
                 onChange={(e) => setStartingLocation(e.target.value)}
-                placeholder="Home, office, or landmark"
+                placeholder="Stop, station, or area"
                 style={styles.startInput}
               />
               <div style={styles.helperText}>
-                Add this if you want the board to show the trip context from where you are leaving.
+                This MVP uses manual input first. We can add live location later if we need it.
+              </div>
+              <div style={styles.nearbyWrap}>
+                <NearbyStops startingPosition={startingLocation} onStopSelect={handleSiteSelect} />
               </div>
             </div>
 
@@ -336,6 +364,9 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.88rem',
     lineHeight: 1.5,
+  },
+  nearbyWrap: {
+    marginTop: '14px',
   },
   stack: {
     display: 'grid',
