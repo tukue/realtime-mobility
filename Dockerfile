@@ -1,4 +1,4 @@
-FROM node:20-slim AS frontend-builder
+FROM node:20.20-bookworm-slim AS frontend-builder
 WORKDIR /app
 
 COPY package*.json ./
@@ -11,7 +11,7 @@ COPY vite.config.ts /app/vite.config.ts
 COPY src /app/src
 RUN npm run build
 
-FROM python:3.11-slim
+FROM python:3.11.15-slim-bookworm
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1

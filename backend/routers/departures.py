@@ -22,4 +22,4 @@ async def get_formatted_departures(site_id: int, source: str = "key"):
     except SLApiError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error fetching formatted departures: {str(e)}")

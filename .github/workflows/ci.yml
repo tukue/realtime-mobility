@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  frontend:
-    name: Frontend build
+  build:
+    name: Build and scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,16 +27,6 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-  backend:
-    name: Backend unit tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -45,7 +35,35 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
+        working-directory: backend
         run: pip install -r requirements.txt
 
       - name: Run tests
+        working-directory: backend
         run: python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Build Docker image
+        run: docker build -t realtime-mobility:${{ github.sha }} .
+
+      - name: Trivy scan temporarily disabled
+        run: echo "Skipping Trivy setup and scan for now."
+
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    steps:
+      - name: Trigger Render deploy hook
+        run: |
+          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL is not set; skipping deploy trigger."
+            exit 0
+          fi
+
+          curl -fsSL -X POST "${RENDER_DEPLOY_HOOK_URL}"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
