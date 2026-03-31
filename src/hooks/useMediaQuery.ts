@@ -12,6 +12,10 @@ export function useMediaQuery(query: string, defaultValue = false) {
   const [matches, setMatches] = useState(() => getMatches(query, defaultValue));
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const mediaQuery = window.matchMedia(query);
 
     const handleChange = () => {
