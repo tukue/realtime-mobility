@@ -6,12 +6,14 @@ from typing import Any, Iterable, Optional
 
 import httpx
 
-SL_TYPEAHEAD_URL = "https://journeyplanner.integration.sl.se/v1/typeahead.json"
-SL_REALTIME_URL = "https://api.sl.se/api2/realtimedeparturesV4.json"
-SL_SITUATION_URL = "https://api.sl.se/api2/deviations.json"
-SL_FREE_SITES_URL = "https://transport.integration.sl.se/v1/sites"
-SL_FREE_DEPARTURES_URL = "https://transport.integration.sl.se/v1/sites/{site_id}/departures"
-SL_FREE_DEVIATIONS_URL = "https://deviations.integration.sl.se/v1/messages"
+from services.sl_config import (
+    get_sl_free_departures_url,
+    get_sl_free_deviations_url,
+    get_sl_free_sites_url,
+    get_sl_realtime_url,
+    get_sl_situation_url,
+    get_sl_typeahead_url,
+)
 
 
 class SLApiError(Exception):
@@ -100,7 +102,7 @@ async def search_stops(
         "stationsonly": "true" if stations_only else "false",
         "maxresults": max_results,
     }
-    return await _fetch_json(SL_TYPEAHEAD_URL, params, client=client)
+    return await _fetch_json(get_sl_typeahead_url(), params, client=client)
 
 
 async def search_stops_free(
@@ -112,7 +114,7 @@ async def search_stops_free(
         "expand": "true",
     }
     data = await _fetch_json(
-        SL_FREE_SITES_URL,
+        get_sl_free_sites_url(),
         params,
         client=client,
         require_api_key=False,
@@ -136,7 +138,7 @@ async def fetch_free_sites_catalog(
         "expand": "true",
     }
     data = await _fetch_json(
-        SL_FREE_SITES_URL,
+        get_sl_free_sites_url(),
         params,
         client=client,
         require_api_key=False,
@@ -208,7 +210,7 @@ async def fetch_realtime_departures(
         "siteid": site_id,
         "timewindow": time_window,
     }
-    data = await _fetch_json(SL_REALTIME_URL, params, client=client)
+    data = await _fetch_json(get_sl_realtime_url(), params, client=client)
 
     if data.get("StatusCode") not in (None, 0):
         raise SLApiError(
@@ -224,7 +226,7 @@ async def fetch_realtime_departures_free(
     *,
     client: Optional[httpx.AsyncClient] = None,
 ) -> dict[str, Any]:
-    url = SL_FREE_DEPARTURES_URL.format(site_id=site_id)
+    url = get_sl_free_departures_url().format(site_id=site_id)
     return await _fetch_json(url, {}, client=client, require_api_key=False)
 
 
@@ -240,7 +242,7 @@ async def fetch_service_alerts(
     if transport_mode:
         params["transportMode"] = transport_mode
 
-    data = await _fetch_json(SL_SITUATION_URL, params, client=client)
+    data = await _fetch_json(get_sl_situation_url(), params, client=client)
     if data.get("StatusCode") != 0:
         return {
             "status": "no_data",
@@ -267,7 +269,7 @@ async def fetch_service_alerts_free(
         params["transport_mode"] = transport_mode.upper()
 
     data = await _fetch_json(
-        SL_FREE_DEVIATIONS_URL,
+        get_sl_free_deviations_url(),
         params,
         client=client,
         require_api_key=False,
