@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Site } from '../types';
 import { searchStops } from '../lib/stopSearch';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface SearchBarProps {
   onSiteSelect: (site: Site) => void;
 }
 
 function SearchBar({ onSiteSelect }: SearchBarProps) {
+  const isMobile = useMediaQuery('(max-width: 720px)');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,7 +102,18 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
       </div>
 
       {showResults && results.length > 0 && (
-        <div style={styles.results}>
+        <div
+          style={
+            isMobile
+              ? {
+                  ...styles.results,
+                  position: 'static',
+                  maxHeight: '320px',
+                  marginTop: '10px',
+                }
+              : styles.results
+          }
+        >
           {results.map((site) => (
             <div
               key={site.SiteId}
