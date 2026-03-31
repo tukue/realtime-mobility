@@ -59,11 +59,14 @@ jobs:
     steps:
       - name: Trigger Render deploy hook
         run: |
-          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
-            echo "RENDER_DEPLOY_HOOK_URL is not set; skipping deploy trigger."
-            exit 0
+          set -euo pipefail
+
+          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL is not set; add the Render deploy hook secret to enable automated deploys."
+            exit 1
           fi
 
-          curl -fsSL -X POST "${RENDER_DEPLOY_HOOK_URL}"
+          curl -fsSL --retry 3 --retry-all-errors --connect-timeout 10 -X POST "${RENDER_DEPLOY_HOOK_URL}?ref=${GITHUB_SHA}"
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          GITHUB_SHA: ${{ github.sha }}
