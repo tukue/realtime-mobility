@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Site, DepartureData, Departure } from '../types';
 import DepartureCard from './DepartureCard';
 
@@ -25,17 +25,27 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeMode, setActiveMode] = useState<ModeKey>('all');
 
+  const isMounted = useRef(true);
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
+    isMounted.current = true;
     setActiveMode('all');
     fetchDepartures(false);
+
     const interval = setInterval(() => {
       fetchDepartures(true);
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted.current = false;
+      clearInterval(interval);
+    };
   }, [site]);
 
   const fetchDepartures = async (silent = false) => {
+    const requestId = ++requestIdRef.current;
+
     if (!silent) {
       setLoading(true);
     } else {
@@ -48,6 +58,8 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       const response = await fetch(`/api/departures/format/${site.SiteId}?source=free`);
       const data = await response.json();
 
+      if (!isMounted.current || requestId !== requestIdRef.current) return;
+
       if (!response.ok) {
         throw new Error(data?.detail || 'Failed to fetch departures');
       }
@@ -55,11 +67,15 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       setDepartures(data as DepartureData);
       setLastUpdated(new Date());
     } catch (err) {
-      setError('Unable to load departures from the SL free API. Please try again.');
+      if (isMounted.current && requestId === requestIdRef.current) {
+        setError('Unable to load departures from the SL free API. Please try again.');
+      }
       console.error(err);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMounted.current && requestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 

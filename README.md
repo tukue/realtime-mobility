@@ -10,25 +10,25 @@ For MVP validation, we will support **Stockholm-focused providers only** so the 
 
 1. **SL (Storstockholms Lokaltrafik) via Trafiklab APIs**
    - **Vehicle positions:** realtime vehicle monitoring where available per mode/feed
-   - **Stop arrivals/updates:** live transit updates (e.g., SL Realtidsinformation feeds)
+   - **Stop arrivals/departures:** realtime departures (e.g., SL Realtidsinformation feeds)
    - **Service alerts:** traffic/disruption information from SL/Trafiklab datasets
    - Why this is a fit: primary operator for metro, commuter rail, buses, trams, and local ferries in Stockholm.
 
 2. **Trafikverket (Swedish Transport Administration) traffic/disruption APIs — Stockholm subset**
    - **Vehicle positions:** not primary source for local transit vehicles (used selectively when relevant)
-   - **Stop arrivals/updates:** complementary station traffic information for regional rail context
+   - **Stop arrivals/departures:** complementary station traffic information for regional rail context
    - **Service alerts:** disruption/traffic situation data relevant to Stockholm area operations
    - Why this is a fit: broad official disruption context that improves alert coverage while remaining Sweden/Stockholm scoped.
 
-> Implementation note: launch with SL live updates + stop search first, then add Stockholm-scoped Trafikverket disruption context as a secondary data source.
+> Implementation note: launch with SL realtime departures + stop search first, then add Stockholm-scoped Trafikverket disruption context as a secondary data source.
 
 ### 2) MVP user stories
 
-1. **Stop/station live board**
-   - As a rider, I can search a stop/station and see the next live updates.
+1. **Stop/station departures**
+   - As a rider, I can search a stop/station and see next departures.
    - Acceptance criteria:
      - Search returns relevant stops/stations by name within 1 interaction.
-     - Live board shows route, destination/headsign, scheduled time, realtime estimate, and delay indicator.
+     - Departure board shows route, destination/headsign, scheduled time, realtime estimate, and delay indicator.
      - Board auto-refreshes (target interval: 15–30s) and clearly shows last-updated timestamp.
 
 2. **Live vehicle map**
@@ -43,7 +43,7 @@ For MVP validation, we will support **Stockholm-focused providers only** so the 
    - Acceptance criteria:
      - Rider can save and remove favorites in one tap/click.
      - Favorites persist across sessions.
-     - Favorites are accessible from the home/live-board view without re-searching.
+     - Favorites are accessible from the home/departure view without re-searching.
 
 ### 3) Non-goals for v1
 
@@ -61,25 +61,24 @@ To keep scope tight, the following are explicitly out of scope for v1:
 MVP is considered successful when these targets are consistently met in production-like usage:
 
 #### Performance & reliability
-- **Median backend API response time:** < **500 ms** for stop search/live-board queries
+- **Median backend API response time:** < **500 ms** for stop search/departure queries
 - **P95 backend API response time:** < **1.2 s**
 - **First contentful view (app shell + first useful content):** < **2.0 s** on typical 4G/mobile hardware
-- **Live-update freshness:** realtime feed ingestion lag < **30 s** median
+- **Departure data freshness:** realtime feed ingestion lag < **30 s** median
 - **Availability:** 99.5% monthly uptime for public API endpoints
 
 #### Product usage & quality
-- **Live board success rate:** ≥ 98% requests return usable updates (not empty/error due to platform issues)
+- **Departure board success rate:** ≥ 98% requests return usable departures (not empty/error due to platform issues)
 - **Map render success rate:** ≥ 99% sessions can load map + vehicle layer
 - **Favorites adoption:** ≥ 25% weekly active riders save at least 1 favorite
 - **Repeat usage:** ≥ 30% 7-day return rate among users who searched at least one stop
 
 ## Features
 
-- Real-time live board information for all SL transport modes
+- Real-time departure information for all SL transport modes
 - Search for stops and stations across Stockholm
 - Save favorite stops for quick access
 - Auto-refresh every 30 seconds
-- Use a manual starting position to surface nearby stops
 - Clean, modern UI with color-coded transport types
 
 ## Tech Stack
@@ -124,6 +123,24 @@ uvicorn main:app --reload --port 8000
 
 The API will be available at `http://localhost:8000`
 
+### Deployment env vars
+
+For Docker or Render deployments, set these values in the service environment so the SL endpoints are controlled entirely by deployment config:
+
+- `SL_REALTIME_API_KEY`
+- `SL_TYPEAHEAD_URL`
+- `SL_REALTIME_URL`
+- `SL_SITUATION_URL`
+- `SL_FREE_SITES_URL`
+- `SL_FREE_DEPARTURES_URL`
+- `SL_FREE_DEVIATIONS_URL`
+
+### Render deploy gate
+
+To make Trivy block production deploys, disable Render auto-deploy for the service and set a GitHub secret named `RENDER_DEPLOY_HOOK_URL` to the Render deploy hook URL.
+
+The GitHub Actions workflow will build the Docker image, scan it with Trivy, and only trigger the Render deploy hook after the scan passes on `main`.
+
 ### 3. Frontend Setup
 
 Install dependencies:
@@ -139,27 +156,17 @@ The frontend will automatically proxy API requests to the backend.
 2. The frontend dev server starts automatically
 3. Open your browser to the URL shown
 4. Search for a stop or station
-5. View real-time live updates
+5. View real-time departures
 
 ## API Endpoints
 
 ### Backend API
 
 - `GET /api/realtime/search?query={query}` - Search for stops/stations
-- `GET /api/realtime/departures/{site_id}` - Get raw live-update data
-- `GET /api/departures/format/{site_id}` - Get formatted live-update data
+- `GET /api/realtime/departures/{site_id}` - Get raw departures data
+- `GET /api/departures/format/{site_id}` - Get formatted departures data
 
 ### SL API Documentation
-
-## Deployment User Story
-
-As a maintainer, I want to deploy the frontend to Vercel or another static host and keep the backend as a separate service, so I can publish the app without changing the codebase for each platform.
-
-What this means in practice:
-- Build the frontend as static output.
-- Point the frontend at the backend API through documented environment variables or proxy settings.
-- Keep the backend health endpoint available after deployment.
-- Reuse the same flow for Vercel, Netlify, Render, or similar platforms.
 
 ## Features to Add
 

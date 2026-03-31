@@ -46,7 +46,7 @@ jobs:
         run: docker build -t realtime-mobility:${{ github.sha }} .
 
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           scan-type: image
           image-ref: realtime-mobility:${{ github.sha }}
