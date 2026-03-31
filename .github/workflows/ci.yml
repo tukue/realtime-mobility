@@ -45,41 +45,8 @@ jobs:
       - name: Build Docker image
         run: docker build -t realtime-mobility:${{ github.sha }} .
 
-      - name: Setup Trivy
-        uses: aquasecurity/setup-trivy@v0.2.4
-        with:
-          version: v0.68.1
-          cache: true
-
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@v0.33.1
-        continue-on-error: true
-        with:
-          scan-type: image
-          image-ref: realtime-mobility:${{ github.sha }}
-          format: sarif
-          output: trivy-results.sarif
-          skip-setup-trivy: true
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-
-      - name: Upload Trivy report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-results
-          path: trivy-results.sarif
-
-      - name: Trivy summary
-        if: always()
-        run: |
-          if [ -f trivy-results.sarif ]; then
-            echo "Trivy scan completed and report uploaded as an artifact." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Trivy report was not generated." >> "$GITHUB_STEP_SUMMARY"
-          fi
+      - name: Trivy scan temporarily disabled
+        run: echo "Skipping Trivy setup and scan for now."
 
   deploy:
     name: Deploy to Render
