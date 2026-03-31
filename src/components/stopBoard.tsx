@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Site, DepartureData, Departure } from '../types';
 import DepartureCard from './DepartureCard';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface StopBoardProps {
   site: Site;
@@ -18,6 +19,7 @@ const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string;
 };
 
 function StopBoard({ site, startingLocation }: StopBoardProps) {
+  const isMobile = useMediaQuery('(max-width: 720px)');
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -158,8 +160,8 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
+    <div style={isMobile ? { ...styles.container, padding: '18px' } : styles.container}>
+      <div style={isMobile ? { ...styles.header, flexDirection: 'column' } : styles.header}>
         <div>
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
@@ -183,7 +185,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
         </button>
       </div>
 
-      <div style={styles.modeBar}>
+      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>
         <button
           type="button"
           onClick={() => setActiveMode('all')}

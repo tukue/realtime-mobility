@@ -3,6 +3,7 @@ import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import { Site } from './types';
 
 const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
@@ -34,6 +35,7 @@ function loadRecentSites(): Site[] {
 }
 
 function App() {
+  const isMobile = useMediaQuery('(max-width: 900px)');
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [startingLocation, setStartingLocation] = useState('');
   const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
@@ -151,7 +153,7 @@ function App() {
       <div style={styles.glowLeft} />
       <div style={styles.glowRight} />
 
-      <main style={styles.container}>
+      <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
           <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
@@ -169,14 +171,20 @@ function App() {
           </div>
         </header>
 
-        <section style={styles.grid}>
+        <section
+          style={
+            isMobile
+              ? { ...styles.grid, gridTemplateColumns: 'minmax(0, 1fr)', gap: '16px' }
+              : styles.grid
+          }
+        >
           <aside style={styles.sidebar}>
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Find a stop</div>
               <SearchBar onSiteSelect={handleSiteSelect} />
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Manual starting position</div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
                 Type a stop, station, or area
@@ -214,7 +222,7 @@ function App() {
               </div>
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Recent stops</div>
               {recentSites.length > 0 ? (
                 <div style={styles.stack}>
@@ -237,12 +245,12 @@ function App() {
               )}
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Saved stops</div>
               <FavoritesList onSiteSelect={handleSiteSelect} />
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>How it works</div>
               <ol style={styles.steps}>
                 <li>Search for a stop or pick a favourite.</li>
@@ -256,7 +264,7 @@ function App() {
             {selectedSite ? (
               <StopBoard site={selectedSite} startingLocation={startingLocation} />
             ) : (
-              <div style={styles.emptyState}>
+              <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
                 <h2 style={styles.emptyTitle}>Select a stop to see live buses.</h2>
                 <p style={styles.emptyText}>

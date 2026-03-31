@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Site } from '../types';
 import { searchStops } from '../lib/stopSearch';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface NearbyStopsProps {
   startingPosition: string;
@@ -10,6 +11,7 @@ interface NearbyStopsProps {
 }
 
 function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: NearbyStopsProps) {
+  const isMobile = useMediaQuery('(max-width: 720px)');
   const [results, setResults] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +88,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
+      <div style={isMobile ? { ...styles.header, flexDirection: 'column', alignItems: 'flex-start' } : styles.header}>
         <div>
           <div style={styles.label}>{hasCoordinates ? 'Nearby stops near you' : 'Nearby stops'}</div>
           <div style={styles.title}>
@@ -99,7 +101,20 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
       {showResults && results.length > 0 && (
         <div style={styles.list}>
           {results.map((site) => (
-            <button key={site.SiteId} type="button" onClick={() => onStopSelect(site)} style={styles.resultButton}>
+            <button
+              key={site.SiteId}
+              type="button"
+              onClick={() => onStopSelect(site)}
+              style={
+                isMobile
+                  ? {
+                      ...styles.resultButton,
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                    }
+                  : styles.resultButton
+              }
+            >
               <div style={styles.resultMain}>
                 <div style={styles.siteName}>{site.Name}</div>
                 <div style={styles.siteMeta}>
@@ -113,7 +128,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                   )}
                 </div>
               </div>
-              <span style={styles.cta}>View buses</span>
+              <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>View buses</span>
             </button>
           ))}
         </div>
