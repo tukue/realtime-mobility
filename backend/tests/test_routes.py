@@ -95,6 +95,38 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["ResponseData"][0]["Name"], "Stockholm Odenplan")
         self.assertEqual(payload["ResponseData"][0]["distance_meters"], 123)
 
+    async def test_nearby_boards_route_attaches_departures(self):
+        async def fake_boards(lat, lon, limit=3, client=None):
+            return [
+                {
+                    "SiteId": "1079",
+                    "Name": "Stockholm Odenplan",
+                    "Type": "Stop",
+                    "X": "18.0456865578456",
+                    "Y": "59.3431180362708",
+                    "distance_meters": 123,
+                    "departures": {
+                        "site_id": 1079,
+                        "site_name": "Stockholm Odenplan",
+                        "status": "ok",
+                        "buses": [{"line_number": "4", "destination": "Radiohuset"}],
+                        "metros": [],
+                        "trains": [],
+                        "trams": [],
+                        "ships": [],
+                    },
+                }
+            ]
+
+        original = nearby.get_nearby_free_boards
+        nearby.get_nearby_free_boards = fake_boards
+        try:
+            payload = await nearby.get_nearby_stop_boards(lat=59.34, lon=18.04)
+        finally:
+            nearby.get_nearby_free_boards = original
+
+        self.assertEqual(payload["ResponseData"][0]["departures"]["buses"][0]["destination"], "Radiohuset")
+
 
 if __name__ == "__main__":
     unittest.main()

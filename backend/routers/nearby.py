@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from services.sl_api import SLApiError, get_nearby_free_sites
+from services.sl_api import SLApiError, get_nearby_free_boards, get_nearby_free_sites
 
 router = APIRouter()
 
@@ -19,3 +19,19 @@ async def get_nearby_stops(lat: float, lon: float, limit: int = 5, source: str =
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching nearby stops: {str(e)}")
+
+
+@router.get("/boards")
+async def get_nearby_stop_boards(lat: float, lon: float, limit: int = 3, source: str = "free"):
+    """Get nearby stops with live departure previews."""
+    try:
+        if source != "free":
+            raise HTTPException(status_code=400, detail="Nearby stop lookup currently uses the free SL source.")
+
+        return {"ResponseData": await get_nearby_free_boards(lat, lon, limit=limit)}
+    except SLApiError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching nearby stop boards: {str(e)}")

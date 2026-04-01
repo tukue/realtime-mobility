@@ -46,12 +46,12 @@ Turn the current Stockholm transit checker into a flow where a user can provide 
 - Review fixes for mounted async cleanup and safe localStorage loading
 
 ### In Progress
-- Nearby buses for the nearest stops
-- UI wording and documentation cleanup for the nearby flow
+- Documentation update for the nearby-bus flow
 
 ### Next Up
-- Render live buses for the nearest stops
-- Add clearer fallback states for denied location permissions
+- Polish the manual search and nearby-copy wording
+- Update `README.md` and `design.md` to describe nearby buses and the new endpoint
+- Expand nearby-flow coverage if we add UI tests later
 
 ## Workstreams
 
@@ -200,10 +200,10 @@ Use this section for follow-up updates as work lands.
 | Starting position capture | Done | Manual stop/station/area input is the MVP path |
 | Geolocation capture | Done | Optional browser location now feeds the nearby stops panel with manual fallback. |
 | Nearby stop endpoint | Done | Returns ranked nearby stops by distance from the provided coordinates. |
-| Nearby bus cards | In progress | The nearby panel can use geolocation, but the live-bus board for nearest stops still needs dedicated results. |
-| Error handling | In progress | Permission denial and manual fallback are handled, but the geo nearby flow still needs richer states. |
-| Tests | Done | Backend unit tests and GitHub Actions CI cover the current app shell |
-| Docs update | Done | Design, README, and implementation notes now match the manual-input MVP |
+| Nearby bus cards | Done | Nearby location mode now renders live bus previews for the closest stops. |
+| Error handling | Done | Denied-location fallback, empty nearby states, and live-preview failure states are now surfaced more clearly. |
+| Tests | Done | Backend unit tests and frontend build verification cover the nearby-flow changes. |
+| Docs update | In progress | `README.md` and `design.md` still need the nearby-bus flow and endpoint documented. |
 
 ## Follow-up Cadence
 

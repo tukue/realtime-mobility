@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Site } from '../types';
+import { NearbyStopBoard, Site } from '../types';
 import { searchStops } from '../lib/stopSearch';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
@@ -12,12 +12,17 @@ interface NearbyStopsProps {
 
 function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: NearbyStopsProps) {
   const isMobile = useMediaQuery('(max-width: 720px)');
-  const [results, setResults] = useState<Site[]>([]);
+  const [results, setResults] = useState<NearbyStopBoard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
   const autoSelectedSiteId = useRef<string | null>(null);
+  const onStopSelectRef = useRef(onStopSelect);
   const hasCoordinates = typeof latitude === 'number' && typeof longitude === 'number';
+
+  useEffect(() => {
+    onStopSelectRef.current = onStopSelect;
+  }, [onStopSelect]);
 
   useEffect(() => {
     const query = startingPosition.trim();
@@ -40,19 +45,21 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
 
       try {
         const sites = hasCoordinates
-          ? await fetchNearbyStops(latitude, longitude)
+          ? await fetchNearbyStopBoards(latitude, longitude)
           : await searchStops(query);
+
         if (!isMounted) {
           return;
         }
-        setResults(sites.slice(0, 5));
+
+        setResults(sites.slice(0, hasCoordinates ? 3 : 5));
         setShowResults(true);
 
         if (hasCoordinates && sites.length > 0) {
           const closestSite = sites[0];
           if (closestSite.SiteId !== autoSelectedSiteId.current) {
             autoSelectedSiteId.current = closestSite.SiteId;
-            onStopSelect(closestSite);
+            onStopSelectRef.current(closestSite);
           }
         }
       } catch (fetchError) {
@@ -75,69 +82,112 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
       isMounted = false;
       window.clearTimeout(timeoutId);
     };
-  }, [hasCoordinates, latitude, longitude, onStopSelect, startingPosition]);
+  }, [hasCoordinates, latitude, longitude, startingPosition]);
 
   if (!hasCoordinates && startingPosition.trim().length < 2) {
     return (
       <div style={styles.empty}>
         <div style={styles.emptyTitle}>Enter a starting position</div>
-        <div style={styles.emptyText}>Type a stop, station, or area to find nearby stops.</div>
+        <div style={styles.emptyText}>
+          Type a stop, station, or area to find nearby stops, or enable location to rank them automatically.
+        </div>
       </div>
     );
   }
+
+  const title = hasCoordinates
+    ? 'Live buses near your location'
+    : startingPosition.trim()
+      ? `Search results for ${startingPosition.trim()}`
+      : 'Nearby stops';
 
   return (
     <div style={styles.container}>
       <div style={isMobile ? { ...styles.header, flexDirection: 'column', alignItems: 'flex-start' } : styles.header}>
         <div>
-          <div style={styles.label}>{hasCoordinates ? 'Nearby stops near you' : 'Nearby stops'}</div>
-          <div style={styles.title}>
-            {hasCoordinates ? 'Closest stops near your location' : `Closest stops for ${startingPosition.trim()}`}
-          </div>
+          <div style={styles.label}>{hasCoordinates ? 'Nearby buses' : 'Nearby stops'}</div>
+          <div style={styles.title}>{title}</div>
         </div>
-        {loading && <div style={styles.loader}>Searching...</div>}
+        {loading && <div style={styles.loader}>{hasCoordinates ? 'Loading nearby buses...' : 'Searching...'}</div>}
       </div>
 
       {showResults && results.length > 0 && (
         <div style={styles.list}>
-          {results.map((site) => (
-            <button
-              key={site.SiteId}
-              type="button"
-              onClick={() => onStopSelect(site)}
-              style={
-                isMobile
-                  ? {
-                      ...styles.resultButton,
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                    }
-                  : styles.resultButton
-              }
-            >
-              <div style={styles.resultMain}>
-                <div style={styles.siteName}>{site.Name}</div>
-                <div style={styles.siteMeta}>
-                  <span style={styles.siteType}>{site.Type}</span>
-                  {typeof site.distance_meters === 'number' && (
-                    <span style={styles.distance}>
-                      {site.distance_meters < 1000
-                        ? `${site.distance_meters} m away`
-                        : `${(site.distance_meters / 1000).toFixed(1)} km away`}
-                    </span>
+          {results.map((site) => {
+            const departures = site.departures;
+            const busPreview = departures?.buses?.slice(0, 2) ?? [];
+            const hasPreview = busPreview.length > 0;
+            const status = departures?.status === 'error' ? departures.error || 'Live departures unavailable' : null;
+
+            return (
+              <button
+                key={site.SiteId}
+                type="button"
+                onClick={() => onStopSelect(site)}
+                style={
+                  isMobile
+                    ? {
+                        ...styles.resultButton,
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                      }
+                    : styles.resultButton
+                }
+              >
+                <div style={styles.resultMain}>
+                  <div style={styles.siteName}>{site.Name}</div>
+                  <div style={styles.siteMeta}>
+                    <span style={styles.siteType}>{site.Type}</span>
+                    {typeof site.distance_meters === 'number' && (
+                      <span style={styles.distance}>
+                        {site.distance_meters < 1000
+                          ? `${site.distance_meters} m away`
+                          : `${(site.distance_meters / 1000).toFixed(1)} km away`}
+                      </span>
+                    )}
+                  </div>
+
+                  {hasCoordinates && (
+                    <div style={styles.previewList}>
+                      {hasPreview ? (
+                        busPreview.map((departure, index) => (
+                          <div key={`${site.SiteId}-${departure.line_number}-${index}`} style={styles.previewItem}>
+                            <span style={styles.previewLine}>{departure.line_number}</span>
+                            <span style={styles.previewDestination}>{departure.destination}</span>
+                            <span style={styles.previewTime}>{departure.display_time}</span>
+                          </div>
+                        ))
+                      ) : status ? (
+                        <div style={styles.previewFallback}>{status}</div>
+                      ) : (
+                        <div style={styles.previewFallback}>No live bus departures right now.</div>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-              <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>View buses</span>
-            </button>
-          ))}
+
+                <div style={isMobile ? styles.cardMetaStack : styles.cardMetaRow}>
+                  {hasCoordinates && departures && (
+                    <span style={styles.liveCount}>
+                      {departures.buses.length} bus{departures.buses.length === 1 ? '' : 'es'}
+                    </span>
+                  )}
+                  <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>Open board</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
       {showResults && !loading && results.length === 0 && !error && (
         <div style={styles.empty}>
-          <div style={styles.emptyTitle}>No nearby stops found</div>
-          <div style={styles.emptyText}>Try another stop name, station, or area.</div>
+          <div style={styles.emptyTitle}>{hasCoordinates ? 'No nearby stops found' : 'No stops found'}</div>
+          <div style={styles.emptyText}>
+            {hasCoordinates
+              ? 'Try another location, or switch back to manual search.'
+              : 'Try another stop name, station, or area.'}
+          </div>
         </div>
       )}
 
@@ -200,7 +250,8 @@ const styles: Record<string, React.CSSProperties> = {
   resultMain: {
     minWidth: 0,
     display: 'grid',
-    gap: '3px',
+    gap: '6px',
+    flex: 1,
   },
   siteName: {
     fontSize: '0.98rem',
@@ -220,6 +271,73 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.78rem',
     fontWeight: 800,
     color: '#a9d7ff',
+  },
+  previewList: {
+    display: 'grid',
+    gap: '8px',
+    marginTop: '2px',
+  },
+  previewItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    padding: '10px 12px',
+    borderRadius: '14px',
+    background: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+  },
+  previewLine: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '30px',
+    padding: '4px 8px',
+    borderRadius: '999px',
+    background: 'rgba(104, 183, 255, 0.16)',
+    color: '#c7e6ff',
+    fontSize: '0.78rem',
+    fontWeight: 800,
+  },
+  previewDestination: {
+    fontSize: '0.88rem',
+    fontWeight: 700,
+    color: 'var(--text)',
+  },
+  previewTime: {
+    fontSize: '0.82rem',
+    color: 'var(--muted)',
+    fontWeight: 700,
+  },
+  previewFallback: {
+    padding: '10px 12px',
+    borderRadius: '14px',
+    background: 'rgba(255, 255, 255, 0.04)',
+    border: '1px dashed rgba(255, 255, 255, 0.12)',
+    color: 'var(--muted)',
+    fontSize: '0.88rem',
+  },
+  cardMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: '10px',
+    flexShrink: 0,
+  },
+  cardMetaStack: {
+    display: 'grid',
+    gap: '10px',
+    alignItems: 'flex-start',
+  },
+  liveCount: {
+    padding: '6px 10px',
+    borderRadius: '999px',
+    background: 'rgba(113, 211, 155, 0.14)',
+    color: '#bdf7d5',
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
   },
   cta: {
     flexShrink: 0,
@@ -262,13 +380,16 @@ const styles: Record<string, React.CSSProperties> = {
 
 export default NearbyStops;
 
-async function fetchNearbyStops(latitude: number | null | undefined, longitude: number | null | undefined): Promise<Site[]> {
+async function fetchNearbyStopBoards(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined
+): Promise<NearbyStopBoard[]> {
   if (typeof latitude !== 'number' || typeof longitude !== 'number') {
     return [];
   }
 
   const response = await fetch(
-    `/api/nearby/stops?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&limit=5&source=free`
+    `/api/nearby/boards?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&limit=3&source=free`
   );
   const data = await response.json();
 

@@ -7,6 +7,7 @@ from services.sl_api import (
     fetch_realtime_departures_free,
     fetch_service_alerts,
     fetch_service_alerts_free,
+    get_nearby_free_boards,
     get_nearby_free_sites,
     normalize_departure_payload,
     normalize_free_departure_payload,
@@ -139,6 +140,55 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["Name"], "Working Stop")
         self.assertEqual(data[0]["SiteId"], "2")
+
+    async def test_get_nearby_free_sites_returns_empty_list_when_catalog_is_empty(self):
+        client = FakeClient(
+            {
+                "https://transport.integration.sl.se/v1/sites": MockResponse([])
+            }
+        )
+
+        data = await get_nearby_free_sites(59.3431180362708, 18.0456865578456, client=client)
+
+        self.assertEqual(data, [])
+
+    async def test_get_nearby_free_boards_attaches_departure_previews(self):
+        client = FakeClient(
+            {
+                "https://transport.integration.sl.se/v1/sites": MockResponse(
+                    [
+                        {
+                            "id": 2,
+                            "name": "Near Stop",
+                            "lat": 59.3435,
+                            "lon": 18.0459,
+                        }
+                    ]
+                ),
+                "https://transport.integration.sl.se/v1/sites/2/departures": MockResponse(
+                    {
+                        "departures": [
+                            {
+                                "destination": "Radiohuset",
+                                "display": "3 min",
+                                "expected": "2026-03-29T12:03:00",
+                                "line": {
+                                    "designation": "4",
+                                    "transport_mode": "BUS",
+                                    "group_of_lines": "Inner city",
+                                },
+                            }
+                        ]
+                    }
+                ),
+            }
+        )
+
+        data = await get_nearby_free_boards(59.3431180362708, 18.0456865578456, client=client)
+
+        self.assertEqual(data[0]["Name"], "Near Stop")
+        self.assertEqual(data[0]["departures"]["site_name"], "Near Stop")
+        self.assertEqual(data[0]["departures"]["buses"][0]["destination"], "Radiohuset")
 
     async def test_fetch_realtime_departures_returns_raw_data(self):
         client = FakeClient(
