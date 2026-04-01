@@ -198,11 +198,11 @@ function App() {
                 style={styles.startInput}
               />
               <div style={styles.helperText}>
-                Use a typed starting point or tap the location button to rank the closest stops automatically.
+                Use a typed starting point or tap <span style={styles.helperStrong}>Use my location</span> to rank the closest stops automatically.
               </div>
               <div style={styles.locationActions}>
                 <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
-                  {geoLoading ? 'Locating...' : geoLocation ? 'Refresh nearby buses' : 'Find nearby buses'}
+                  {geoLoading ? 'Locating...' : geoLocation ? 'Use my location again' : 'Use my location'}
                 </button>
                 {geoLocation && (
                   <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
@@ -445,6 +445,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.88rem',
     lineHeight: 1.5,
+  },
+  helperStrong: {
+    color: 'var(--text)',
+    fontWeight: 800,
   },
   locationActions: {
     display: 'flex',
