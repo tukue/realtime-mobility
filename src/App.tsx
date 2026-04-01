@@ -271,7 +271,7 @@ function App() {
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Try a central stop like Skanstull, Odenplan, or Stureplan, or use nearby buses to jump in faster.
+                  Use nearby buses to travel.
                 </div>
               </div>
             )}
