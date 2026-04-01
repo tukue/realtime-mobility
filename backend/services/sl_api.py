@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import math
 import os
 from typing import Any, Iterable, Optional
@@ -197,6 +198,48 @@ async def get_nearby_free_sites(
 
     nearby_sites.sort(key=lambda site: (site.get("distance_meters", 0), site.get("Name", "")))
     return nearby_sites[: max(limit, 0)]
+
+
+async def get_nearby_free_boards(
+    latitude: float,
+    longitude: float,
+    *,
+    limit: int = 3,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    nearby_sites = await get_nearby_free_sites(latitude, longitude, limit=limit, client=client)
+
+    async def _attach_departures(site: dict[str, Any]) -> dict[str, Any]:
+        site_id_raw = site.get("SiteId", "")
+        try:
+            site_id = int(site_id_raw)
+        except (TypeError, ValueError):
+            return {**site, "departures": normalize_free_departure_payload({}, 0)}
+
+        try:
+            raw_departures = await fetch_realtime_departures_free(site_id, client=client)
+            departures = normalize_free_departure_payload(raw_departures, site_id)
+            departures["site_name"] = site.get("Name", departures.get("site_name", ""))
+        except SLApiError as exc:
+            departures = {
+                "site_id": site_id,
+                "site_name": site.get("Name", ""),
+                "status": "error",
+                "buses": [],
+                "metros": [],
+                "trains": [],
+                "trams": [],
+                "ships": [],
+                "stop_deviations": [],
+                "error": exc.message,
+            }
+
+        return {**site, "departures": departures}
+
+    if not nearby_sites:
+        return []
+
+    return list(await asyncio.gather(*(_attach_departures(site) for site in nearby_sites)))
 
 
 async def fetch_realtime_departures(

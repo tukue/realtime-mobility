@@ -12,7 +12,7 @@ class NearbyIntegrationTests(unittest.IsolatedAsyncioTestCase):
             return [
                 {
                     "SiteId": "2",
-                    "Name": "Near Stop",
+                    "Name": "Norgegatan",
                     "Type": "Stop",
                     "X": "18.0459",
                     "Y": "59.3435",
@@ -42,7 +42,7 @@ class NearbyIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(payload["ResponseData"][0]["Name"], "Near Stop")
+        self.assertEqual(payload["ResponseData"][0]["Name"], "Norgegatan")
         self.assertEqual(payload["ResponseData"][0]["distance_meters"], 123)
         self.assertEqual(payload["ResponseData"][1]["Name"], "Far Stop")
 

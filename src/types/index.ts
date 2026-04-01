@@ -34,3 +34,10 @@ export interface FavoriteStop {
   site_name: string;
   created_at: string;
 }
+
+export interface NearbyStopBoard extends Site {
+  departures?: DepartureData & {
+    error?: string;
+    status?: string;
+  };
+}

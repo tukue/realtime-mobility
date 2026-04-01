@@ -158,7 +158,7 @@ function App() {
           <div style={styles.kicker}>Stockholm travel planner</div>
           <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
           <p style={styles.subtitle}>
-            Search a stop or station, save the ones you use often, and keep the board open while you move.
+            Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
           </p>
 
           <div style={styles.pills}>
@@ -185,7 +185,7 @@ function App() {
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
-              <div style={styles.cardLabel}>Manual starting position</div>
+              <div style={styles.cardLabel}>Nearby buses</div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
                 Type a stop, station, or area
               </label>
@@ -198,11 +198,11 @@ function App() {
                 style={styles.startInput}
               />
               <div style={styles.helperText}>
-                This MVP uses manual input first. We can add live location later if we need it.
+                Use a typed starting point or tap the location button to rank the closest stops automatically.
               </div>
               <div style={styles.locationActions}>
                 <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
-                  {geoLoading ? 'Locating...' : geoLocation ? 'Refresh my location' : 'Use my location'}
+                  {geoLoading ? 'Locating...' : geoLocation ? 'Refresh nearby buses' : 'Find nearby buses'}
                 </button>
                 {geoLocation && (
                   <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
@@ -210,7 +210,7 @@ function App() {
                   </button>
                 )}
               </div>
-              {geoLocation && <div style={styles.locationStatus}>Using your live location for nearby stops.</div>}
+              {geoLocation && <div style={styles.locationStatus}>Using your live location to rank the nearest live bus stops.</div>}
               {geoError && <div style={styles.locationError}>{geoError}</div>}
               <div style={styles.nearbyWrap}>
                 <NearbyStops
@@ -253,8 +253,8 @@ function App() {
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>How it works</div>
               <ol style={styles.steps}>
-                <li>Search for a stop or pick a favourite.</li>
-                <li>Open the stop to see all live buses.</li>
+                <li>Search for a stop or enter a starting position.</li>
+                <li>Use nearby buses to jump to the closest live stop boards.</li>
                 <li>Switch modes or refresh the board while you travel.</li>
               </ol>
             </div>
@@ -266,12 +266,12 @@ function App() {
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop to see live buses.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live buses.</h2>
                 <p style={styles.emptyText}>
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Try a central stop like Skanstull, Odenplan, or Stureplan, then add your starting location if needed.
+                  Try a central stop like Skanstull, Odenplan, or Stureplan, or use nearby buses to jump in faster.
                 </div>
               </div>
             )}
