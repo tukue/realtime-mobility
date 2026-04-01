@@ -169,7 +169,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                 <div style={isMobile ? styles.cardMetaStack : styles.cardMetaRow}>
                   {hasCoordinates && departures && (
                     <span style={styles.liveCount}>
-                      {departures.buses.length} bus{departures.buses.length === 1 ? '' : 'es'}
+                      {(departures.buses?.length ?? 0)} bus{(departures.buses?.length ?? 0) === 1 ? '' : 'es'}
                     </span>
                   )}
                   <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>Open board</span>
