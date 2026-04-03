@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Site, DepartureData, Departure } from '../types';
 import DepartureCard from './DepartureCard';
+import DisruptionBanner from './DisruptionBanner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface StopBoardProps {
@@ -185,8 +186,9 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
         </button>
       </div>
 
-      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>
-        <button
+      <DisruptionBanner siteId={site.SiteId} />
+
+      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>        <button
           type="button"
           onClick={() => setActiveMode('all')}
           style={activeMode === 'all' ? { ...styles.modeButton, ...styles.modeButtonActive } : styles.modeButton}

@@ -46,7 +46,7 @@ Turn the current Stockholm transit checker into a flow where a user can provide 
 - Review fixes for mounted async cleanup and safe localStorage loading
 
 ### In Progress
-- Documentation update for the nearby-bus flow
+- None
 
 ### Next Up
 - Polish the manual search and nearby-copy wording
@@ -203,7 +203,7 @@ Use this section for follow-up updates as work lands.
 | Nearby bus cards | Done | Nearby location mode now renders live bus previews for the closest stops. |
 | Error handling | Done | Denied-location fallback, empty nearby states, and live-preview failure states are now surfaced more clearly. |
 | Tests | Done | Backend unit tests and frontend build verification cover the nearby-flow changes. |
-| Docs update | In progress | `README.md` and `design.md` still need the nearby-bus flow and endpoint documented. |
+| Docs update | Done | `README.md` and `design.md` now document the nearby-bus flow and API endpoints. |
 
 ## Follow-up Cadence
 

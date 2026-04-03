@@ -77,6 +77,7 @@ MVP is considered successful when these targets are consistently met in producti
 
 - Real-time departure information for all SL transport modes
 - Search for stops and stations across Stockholm
+- Use nearby buses from your current location or a typed starting point
 - Save favorite stops for quick access
 - Auto-refresh every 30 seconds
 - Clean, modern UI with color-coded transport types
@@ -156,7 +157,8 @@ The frontend will automatically proxy API requests to the backend.
 2. The frontend dev server starts automatically
 3. Open your browser to the URL shown
 4. Search for a stop or station
-5. View real-time departures
+5. Or use nearby buses to rank the closest live stops from a starting point
+6. View real-time departures
 
 ## API Endpoints
 
@@ -165,6 +167,8 @@ The frontend will automatically proxy API requests to the backend.
 - `GET /api/realtime/search?query={query}` - Search for stops/stations
 - `GET /api/realtime/departures/{site_id}` - Get raw departures data
 - `GET /api/departures/format/{site_id}` - Get formatted departures data
+- `GET /api/nearby/stops?lat={lat}&lon={lon}` - Get nearby stops ranked by distance
+- `GET /api/nearby/boards?lat={lat}&lon={lon}` - Get nearby stops with live departure previews
 
 ### SL API Documentation
 

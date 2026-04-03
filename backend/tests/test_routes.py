@@ -109,7 +109,7 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
                         "site_id": 1079,
                         "site_name": "Norgegatan",
                         "status": "ok",
-                        "buses": [{"line_number": "4", "destination": "Radiohuset"}],
+                        "buses": [{"line_number": "179", "destination": "Radiohuset"}],
                         "metros": [],
                         "trains": [],
                         "trams": [],

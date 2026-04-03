@@ -160,7 +160,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
                             "display": "3 min",
                             "expected": "2026-03-29T12:03:00",
                             "line": {
-                                "designation": "4",
+                                "designation": "179",
                                 "transport_mode": "BUS",
                                 "group_of_lines": "Inner city",
                             },
@@ -183,7 +183,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
                     "ResponseData": {
                         "Buses": [
                             {
-                                "LineNumber": "4",
+                                "LineNumber": "179",
                                 "Destination": "Radiohuset",
                                 "DisplayTime": "3 min",
                                 "ExpectedDateTime": "2026-03-29T12:03:00",
@@ -209,7 +209,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
                             "display": "3 min",
                             "expected": "2026-03-29T12:03:00",
                             "line": {
-                                "designation": "4",
+                                "designation": "179",
                                 "transport_mode": "BUS",
                                 "group_of_lines": "Inner city",
                             },
@@ -270,7 +270,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         payload = normalize_transport_data(
             [
                 {
-                    "LineNumber": "4",
+                    "LineNumber": "179",
                     "Destination": "Radiohuset",
                     "DisplayTime": "3 min",
                     "ExpectedDateTime": "2026-03-29T12:03:00",
@@ -280,7 +280,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
             "bus",
         )
 
-        self.assertEqual(payload[0]["line_number"], "4")
+        self.assertEqual(payload[0]["line_number"], "179")
         self.assertEqual(payload[0]["transport_mode"], "bus")
         self.assertTrue(payload[0]["has_deviations"])
 
@@ -289,7 +289,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
             "StatusCode": 0,
             "ResponseData": {
                 "Name": "Norgegatan",
-                "Buses": [{"LineNumber": "4", "Destination": "Radiohuset"}],
+                "Buses": [{"LineNumber": "179", "Destination": "Radiohuset"}],
                 "Metros": [],
                 "Trains": [],
                 "Trams": [],
@@ -302,7 +302,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["site_id"], 9117)
         self.assertEqual(payload["site_name"], "Norgegatan")
         self.assertEqual(payload["status"], "ok")
-        self.assertEqual(payload["buses"][0]["line_number"], "4")
+        self.assertEqual(payload["buses"][0]["line_number"], "179")
 
     def test_normalize_free_site_result_returns_expected_shape(self):
         payload = normalize_free_site_result(
@@ -341,7 +341,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
                     "expected": "2026-03-29T12:03:00",
                     "direction_code": 1,
                     "line": {
-                        "designation": "4",
+                        "designation": "179",
                         "transport_mode": "BUS",
                         "group_of_lines": "Inner city",
                     },
@@ -354,7 +354,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         payload = normalize_free_departure_payload(raw, 9117)
 
         self.assertEqual(payload["site_id"], 9117)
-        self.assertEqual(payload["buses"][0]["line_number"], "4")
+        self.assertEqual(payload["buses"][0]["line_number"], "179")
         self.assertEqual(payload["buses"][0]["transport_mode"], "bus")
         self.assertEqual(payload["status"], "ok")
 
