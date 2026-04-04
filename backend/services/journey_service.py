@@ -108,6 +108,7 @@ async def plan_journey(
 
     trips = [_parse_trip(t) for t in raw_trips if isinstance(t, dict)]
     trips.sort(key=lambda t: t["departure_time"])
+    trips = trips[:5]
 
     origin_name = (data.get("Origin") or {}).get("name") or ""
     dest_name = (data.get("Destination") or {}).get("name") or ""
