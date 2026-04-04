@@ -8,9 +8,12 @@ import os
 
 load_dotenv()
 
-from routers import realtime, departures, situations, nearby
+import asyncio
 
-app = FastAPI(title="Stockholm Transit API")
+from routers import realtime, liveboard, situations, nearby, alerts, journey
+from services.alerts_manager import poller
+
+app = FastAPI(title="Stockholm public travel planner API")
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / "dist"
 
@@ -24,8 +27,15 @@ app.add_middleware(
 
 app.include_router(realtime.router, prefix="/api/realtime", tags=["realtime"])
 app.include_router(nearby.router, prefix="/api/nearby", tags=["nearby"])
-app.include_router(departures.router, prefix="/api/departures", tags=["departures"])
+app.include_router(liveboard.router, prefix="/api/liveboard", tags=["liveboard"])
 app.include_router(situations.router, prefix="/api/situations", tags=["situations"])
+app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
+app.include_router(journey.router, prefix="/api/journey", tags=["journey"])
+
+
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(poller.start())
 
 
 def _safe_frontend_path(requested_path: str) -> Path | None:
@@ -42,7 +52,7 @@ async def root():
     index_file = FRONTEND_DIST_DIR / "index.html"
     if index_file.exists():
         return FileResponse(index_file)
-    return {"message": "Stockholm Transit API", "status": "running"}
+    return {"message": "Stockholm public travel planner API", "status": "running"}
 
 @app.get("/api/health")
 async def health():

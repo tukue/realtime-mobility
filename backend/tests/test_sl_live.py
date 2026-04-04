@@ -83,7 +83,7 @@ class SlMockedSmokeTests(unittest.IsolatedAsyncioTestCase):
                             "display": "3 min",
                             "expected": "2026-03-29T12:03:00",
                             "line": {
-                                "designation": "4",
+                                "designation": "179",
                                 "transport_mode": "BUS",
                                 "group_of_lines": "Inner city",
                             },

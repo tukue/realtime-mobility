@@ -1,19 +1,19 @@
 import unittest
 
-from routers import departures, nearby, realtime, situations
+from routers import liveboard, nearby, realtime, situations
 
 
 class RouteTests(unittest.IsolatedAsyncioTestCase):
-    async def test_departures_route_returns_normalized_payload(self):
+    async def test_liveboard_route_returns_normalized_payload(self):
         async def fake_fetch(site_id, time_window=60, client=None):
             return {"ResponseData": {"Buses": [], "Name": "Test stop"}}
 
-        original = departures.fetch_realtime_departures
-        departures.fetch_realtime_departures = fake_fetch
+        original = liveboard.fetch_realtime_departures
+        liveboard.fetch_realtime_departures = fake_fetch
         try:
-            payload = await departures.get_formatted_departures(9117)
+            payload = await liveboard.get_formatted_liveboard(9117)
         finally:
-            departures.fetch_realtime_departures = original
+            liveboard.fetch_realtime_departures = original
 
         self.assertEqual(payload["site_id"], 9117)
         self.assertEqual(payload["site_name"], "Test stop")
@@ -109,7 +109,7 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
                         "site_id": 1079,
                         "site_name": "Norgegatan",
                         "status": "ok",
-                        "buses": [{"line_number": "4", "destination": "Radiohuset"}],
+                        "buses": [{"line_number": "179", "destination": "Radiohuset"}],
                         "metros": [],
                         "trains": [],
                         "trams": [],
