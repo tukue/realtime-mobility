@@ -17,7 +17,7 @@ Turn the current Stockholm transit checker into a flow where a user can provide 
 ### Backend
 - `backend/main.py` wires the FastAPI app and routers.
 - `backend/routers/realtime.py` serves stop search and live updates.
-- `backend/routers/departures.py` serves normalized live-update responses.
+- `backend/routers/liveboard.py` serves normalized live-update responses.
 - `backend/routers/situations.py` serves disruption alerts.
 - `backend/services/sl_api.py` contains the SL API client, payload normalization, and error handling.
 

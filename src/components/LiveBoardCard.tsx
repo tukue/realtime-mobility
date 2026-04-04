@@ -1,30 +1,30 @@
 import React from 'react';
 import { Departure } from '../types';
 
-interface DepartureCardProps {
-  departure: Departure;
+interface LiveBoardCardProps {
+  entry: Departure;
   color: string;
 }
 
-function DepartureCard({ departure, color }: DepartureCardProps) {
-  const hasDeviations = departure.has_deviations || (departure.deviations && departure.deviations.length > 0);
-  const transportMode = departure.transport_mode ? departure.transport_mode.toUpperCase() : 'LIVE';
+function LiveBoardCard({ entry, color }: LiveBoardCardProps) {
+  const hasDeviations = entry.has_deviations || (entry.deviations && entry.deviations.length > 0);
+  const transportMode = entry.transport_mode ? entry.transport_mode.toUpperCase() : 'LIVE';
 
   return (
     <div style={styles.card}>
       <div style={{ ...styles.lineNumber, backgroundColor: color }}>
-        <span>{departure.line_number}</span>
+        <span>{entry.line_number}</span>
         <span style={styles.modeTag}>{transportMode}</span>
       </div>
 
       <div style={styles.info}>
         <div style={styles.topRow}>
-          <div style={styles.destination}>{departure.destination}</div>
-          <div style={styles.time}>{departure.display_time}</div>
+          <div style={styles.destination}>{entry.destination}</div>
+          <div style={styles.time}>{entry.display_time}</div>
         </div>
 
         <div style={styles.bottomRow}>
-          <div style={styles.meta}>{departure.expected_datetime}</div>
+          <div style={styles.meta}>{entry.expected_datetime}</div>
           {hasDeviations ? <div style={styles.alert}>Possible delay</div> : <div style={styles.ok}>On track</div>}
         </div>
       </div>
@@ -126,4 +126,4 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-export default DepartureCard;
+export default LiveBoardCard;

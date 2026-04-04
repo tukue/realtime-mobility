@@ -10,7 +10,7 @@ load_dotenv()
 
 import asyncio
 
-from routers import realtime, departures, situations, nearby, alerts
+from routers import realtime, liveboard, situations, nearby, alerts, journey
 from services.alerts_manager import poller
 
 app = FastAPI(title="Stockholm public travel planner API")
@@ -27,9 +27,10 @@ app.add_middleware(
 
 app.include_router(realtime.router, prefix="/api/realtime", tags=["realtime"])
 app.include_router(nearby.router, prefix="/api/nearby", tags=["nearby"])
-app.include_router(departures.router, prefix="/api/departures", tags=["departures"])
+app.include_router(liveboard.router, prefix="/api/liveboard", tags=["liveboard"])
 app.include_router(situations.router, prefix="/api/situations", tags=["situations"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
+app.include_router(journey.router, prefix="/api/journey", tags=["journey"])
 
 
 @app.on_event("startup")

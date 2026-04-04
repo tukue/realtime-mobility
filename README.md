@@ -165,8 +165,8 @@ The frontend will automatically proxy API requests to the backend.
 ### Backend API
 
 - `GET /api/realtime/search?query={query}` - Search for stops/stations
-- `GET /api/realtime/departures/{site_id}` - Get raw departures data
-- `GET /api/departures/format/{site_id}` - Get formatted departures data
+- `GET /api/realtime/liveboard/{site_id}` - Get raw live board data
+- `GET /api/liveboard/format/{site_id}` - Get formatted live board data
 - `GET /api/nearby/stops?lat={lat}&lon={lon}` - Get nearby stops ranked by distance
 - `GET /api/nearby/boards?lat={lat}&lon={lon}` - Get nearby stops with live departure previews
 

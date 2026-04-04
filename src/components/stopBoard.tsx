@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Site, DepartureData, Departure } from '../types';
-import DepartureCard from './DepartureCard';
+import LiveBoardCard from './LiveBoardCard';
 import DisruptionBanner from './DisruptionBanner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
@@ -58,7 +58,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/departures/format/${site.SiteId}?source=free`);
+      const response = await fetch(`/api/liveboard/format/${site.SiteId}?source=free`);
       const data = await response.json();
 
       if (!isMounted.current || requestId !== requestIdRef.current) return;
@@ -127,8 +127,8 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
         </div>
 
         <div style={styles.departureGrid}>
-          {items.slice(0, 6).map((departure, index) => (
-            <DepartureCard key={`${departure.line_number}-${departure.destination}-${index}`} departure={departure} color={color} />
+          {items.slice(0, 6).map((entry, index) => (
+            <LiveBoardCard key={`${entry.line_number}-${entry.destination}-${index}`} entry={entry} color={color} />
           ))}
         </div>
       </section>
