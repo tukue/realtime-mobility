@@ -17,6 +17,7 @@ async def get_alerts(site_id: int, source: str = "free"):
 @router.websocket("/ws/{site_id}")
 async def ws_alerts(websocket: WebSocket, site_id: str):
     """WebSocket endpoint — pushes alert updates to the client."""
+    await websocket.accept()
     if not site_id or not site_id.strip():
         await websocket.close(code=4000)
         return

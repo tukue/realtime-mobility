@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 from fastapi import WebSocket
-from starlette.websockets import WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from services.alerts_service import fetch_alerts_for_site
 
@@ -18,7 +18,8 @@ class AlertsConnectionManager:
         self._connections: dict[str, set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, site_id: str) -> None:
-        await websocket.accept()
+        if getattr(websocket, "application_state", None) != WebSocketState.CONNECTED:
+            await websocket.accept()
         self._connections.setdefault(site_id, set()).add(websocket)
         await websocket.send_json({"type": "connected", "site_id": site_id})
 
@@ -29,7 +30,7 @@ class AlertsConnectionManager:
             self._connections.pop(site_id, None)
 
     async def broadcast(self, site_id: str, data: dict[str, Any]) -> None:
-        sockets = set(self._connections.get(site_id, set()))
+        sockets = list(self._connections.get(site_id, set()))
         for ws in sockets:
             try:
                 await ws.send_json(data)

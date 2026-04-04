@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+import httpx
+
 from services.sl_api import SLApiError, fetch_service_alerts_free
 
 
