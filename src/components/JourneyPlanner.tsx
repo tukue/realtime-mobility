@@ -99,7 +99,7 @@ function StopInput({ label, inputId, value, onChange, onSelect }: StopInputProps
   )
 }
 
-function TripCard({ trip, index }: { trip: Trip; index: number }) {
+function TripCard({ trip }: { trip: Trip }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -232,7 +232,7 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
             {result.origin_name || originSite?.Name} → {result.destination_name || destSite?.Name}
           </div>
           {result.trips.map((trip, i) => (
-            <TripCard key={i} trip={trip} index={i} />
+            <TripCard key={i} trip={trip} />
           ))}
         </div>
       )}
