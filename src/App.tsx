@@ -156,7 +156,7 @@ function App() {
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
-          <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
+          <h1 style={styles.title}>Find your stop, then check the nearby buses</h1>
           <p style={styles.subtitle}>
             Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
           </p>
