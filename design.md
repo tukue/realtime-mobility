@@ -12,6 +12,8 @@ The app should let a rider:
 
 This is not a full journey planner. It is a focused “check transit now” tool.
 
+Current MVP: the app uses typed stop, station, or area input for nearby-bus discovery. Live geolocation is a later enhancement, not a prerequisite for the core flow.
+
 ## 2. Core Use Cases
 
 ### 2.1 Quick live-board check
@@ -25,6 +27,9 @@ User checks buses, metro, trains, trams, and ships from the same stop without sw
 
 ### 2.4 Deployment confidence
 User can tell whether the backend is reachable and whether live data is loading correctly.
+
+### 2.5 Nearby-bus shortcut
+User enters a starting location and quickly sees the closest matching stops without needing to grant browser location access.
 
 ## 3. Product Principles
 
@@ -202,8 +207,8 @@ The redesign is successful if:
 - Departure card refinements
 
 ### Phase 3
-- Nearby stops
-- Location-based shortcuts
+- Nearby stops from typed starting input
+- Optional location-based shortcuts
 - More deployment polish
 
 ## 13. Open Questions
