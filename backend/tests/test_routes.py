@@ -32,13 +32,27 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["ResponseData"][0]["Name"], "Odenplan")
 
     async def test_realtime_search_route_can_use_free_source(self):
-        async def fake_search_free(query, client=None):
+        async def fake_search_free(query, transport_mode=None, client=None):
             return [{"name": query}]
 
         original = realtime.search_stops_free
         realtime.search_stops_free = fake_search_free
         try:
             payload = await realtime.search_site("Odenplan", source="free")
+        finally:
+            realtime.search_stops_free = original
+
+        self.assertEqual(payload["ResponseData"][0]["Name"], "Odenplan")
+
+    async def test_realtime_search_route_passes_transport_mode_to_free_source(self):
+        async def fake_search_free(query, transport_mode=None, client=None):
+            self.assertEqual(transport_mode, "train")
+            return [{"name": query, "type": "Station"}]
+
+        original = realtime.search_stops_free
+        realtime.search_stops_free = fake_search_free
+        try:
+            payload = await realtime.search_site("Odenplan", source="free", transport_mode="train")
         finally:
             realtime.search_stops_free = original
 

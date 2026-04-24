@@ -5,6 +5,9 @@ import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
 import { Site } from './types';
 
+type BoardMode = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
+type NearbyMode = 'buses' | 'trains';
+
 const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
 const STARTING_LOCATION_KEY = 'realtime-mobility.starting-location';
 const MAX_RECENTS = 4;
@@ -30,6 +33,8 @@ function loadRecentSites(): Site[] {
 
 function App() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [selectedMode, setSelectedMode] = useState<BoardMode>('all');
+  const [nearbyMode, setNearbyMode] = useState<NearbyMode>('buses');
   const [startingLocation, setStartingLocation] = useState('');
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
@@ -86,8 +91,9 @@ function App() {
     };
   }, []);
 
-  const handleSiteSelect = (site: Site) => {
+  const handleSiteSelect = (site: Site, preferredMode: BoardMode = 'all') => {
     setSelectedSite(site);
+    setSelectedMode(preferredMode);
     setRecentSites((current) => {
       const next = [site, ...current.filter((item) => item.SiteId !== site.SiteId)].slice(0, MAX_RECENTS);
       try {
@@ -130,23 +136,39 @@ function App() {
             </div>
 
             <div style={styles.card}>
-              <div style={styles.cardLabel}>Manual starting position</div>
+              <div style={styles.cardLabel}>Nearby transport</div>
+              <div style={styles.transportModeBar}>
+                <button
+                  type="button"
+                  onClick={() => setNearbyMode('buses')}
+                  style={nearbyMode === 'buses' ? { ...styles.transportModeButton, ...styles.transportModeButtonActive } : styles.transportModeButton}
+                >
+                  Bus
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNearbyMode('trains')}
+                  style={nearbyMode === 'trains' ? { ...styles.transportModeButton, ...styles.transportModeButtonActive } : styles.transportModeButton}
+                >
+                  Train
+                </button>
+              </div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
-                Type a stop, station, or area
+                {nearbyMode === 'trains' ? 'Enter your location to find train stations' : 'Enter your location to find bus stops'}
               </label>
               <input
                 id="starting-location"
                 type="text"
                 value={startingLocation}
                 onChange={(e) => setStartingLocation(e.target.value)}
-                placeholder="Stop, station, or area"
+                placeholder={nearbyMode === 'trains' ? 'Area, stop, or station near the train' : 'Area, stop, or station near the bus'}
                 style={styles.startInput}
               />
               <div style={styles.helperText}>
-                This MVP uses manual input first. We can add live location later if we need it.
+                Choose the transport first, then enter the location you want to search from.
               </div>
               <div style={styles.nearbyWrap}>
-                <NearbyStops startingPosition={startingLocation} onStopSelect={handleSiteSelect} />
+                <NearbyStops startingPosition={startingLocation} mode={nearbyMode} onStopSelect={handleSiteSelect} />
               </div>
             </div>
 
@@ -182,7 +204,7 @@ function App() {
               <div style={styles.cardLabel}>How it works</div>
               <ol style={styles.steps}>
                 <li>Search for a stop or pick a favourite.</li>
-                <li>Open the stop to see all live buses.</li>
+                <li>For nearby train stations, click Train first and then enter your location.</li>
                 <li>Switch modes or refresh the board while you travel.</li>
               </ol>
             </div>
@@ -190,11 +212,11 @@ function App() {
 
           <section style={styles.boardArea}>
             {selectedSite ? (
-              <StopBoard site={selectedSite} startingLocation={startingLocation} />
+              <StopBoard site={selectedSite} startingLocation={startingLocation} initialMode={selectedMode} />
             ) : (
               <div style={styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop to see live buses.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop to see live departures.</h2>
                 <p style={styles.emptyText}>
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
@@ -235,6 +257,26 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '50%',
     background: 'radial-gradient(circle, rgba(247, 185, 85, 0.18) 0%, rgba(247, 185, 85, 0) 68%)',
     pointerEvents: 'none',
+  },
+  transportModeBar: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '14px',
+  },
+  transportModeButton: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    border: '1px solid var(--border)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    color: 'var(--muted)',
+    fontSize: '0.86rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  transportModeButtonActive: {
+    background: 'rgba(104, 183, 255, 0.14)',
+    color: 'var(--text)',
+    borderColor: 'rgba(104, 183, 255, 0.35)',
   },
   container: {
     position: 'relative',

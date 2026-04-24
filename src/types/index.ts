@@ -4,6 +4,7 @@ export interface Site {
   Type: string;
   X: string;
   Y: string;
+  StopAreas?: Array<Record<string, unknown>>;
 }
 
 export interface Departure {

@@ -2,12 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { Site } from '../types';
 import { searchStops } from '../lib/stopSearch';
 
+type NearbyMode = 'buses' | 'trains';
+
 interface NearbyStopsProps {
   startingPosition: string;
-  onStopSelect: (site: Site) => void;
+  mode: NearbyMode;
+  onStopSelect: (site: Site, preferredMode: NearbyMode) => void;
 }
 
-function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
+const MODE_COPY: Record<NearbyMode, { label: string; cta: string; emptyTitle: string }> = {
+  buses: { label: 'Nearby bus stops', cta: 'View buses', emptyTitle: 'No nearby bus stops found' },
+  trains: { label: 'Nearby train stations', cta: 'View trains', emptyTitle: 'No nearby train stations found' },
+};
+
+function NearbyStops({ startingPosition, mode, onStopSelect }: NearbyStopsProps) {
   const [results, setResults] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +41,7 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
       setError(null);
 
       try {
-        const sites = await searchStops(query);
+        const sites = await searchStops(query, mode === 'trains' ? 'train' : 'bus');
         if (!isMounted) {
           return;
         }
@@ -59,23 +67,26 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
       isMounted = false;
       window.clearTimeout(timeoutId);
     };
-  }, [startingPosition]);
+  }, [mode, startingPosition]);
 
   if (startingPosition.trim().length < 2) {
+    const copy = MODE_COPY[mode];
     return (
       <div style={styles.empty}>
-        <div style={styles.emptyTitle}>Enter a starting position</div>
-        <div style={styles.emptyText}>Type a stop, station, or area to find nearby stops.</div>
+        <div style={styles.emptyTitle}>Enter a location</div>
+        <div style={styles.emptyText}>Type a stop, station, or area to find {copy.label.toLowerCase()}.</div>
       </div>
     );
   }
+
+  const copy = MODE_COPY[mode];
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <div style={styles.label}>Nearby stops</div>
-          <div style={styles.title}>Closest stops for {startingPosition.trim()}</div>
+          <div style={styles.label}>{copy.label}</div>
+          <div style={styles.title}>Closest matches for {startingPosition.trim()}</div>
         </div>
         {loading && <div style={styles.loader}>Searching...</div>}
       </div>
@@ -83,12 +94,12 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
       {showResults && results.length > 0 && (
         <div style={styles.list}>
           {results.map((site) => (
-            <button key={site.SiteId} type="button" onClick={() => onStopSelect(site)} style={styles.resultButton}>
+            <button key={site.SiteId} type="button" onClick={() => onStopSelect(site, mode)} style={styles.resultButton}>
               <div style={styles.resultMain}>
                 <div style={styles.siteName}>{site.Name}</div>
                 <div style={styles.siteType}>{site.Type}</div>
               </div>
-              <span style={styles.cta}>View buses</span>
+              <span style={styles.cta}>{copy.cta}</span>
             </button>
           ))}
         </div>
@@ -96,7 +107,7 @@ function NearbyStops({ startingPosition, onStopSelect }: NearbyStopsProps) {
 
       {showResults && !loading && results.length === 0 && !error && (
         <div style={styles.empty}>
-          <div style={styles.emptyTitle}>No nearby stops found</div>
+          <div style={styles.emptyTitle}>{copy.emptyTitle}</div>
           <div style={styles.emptyText}>Try another stop name, station, or area.</div>
         </div>
       )}

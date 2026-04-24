@@ -5,6 +5,7 @@ import DepartureCard from './DepartureCard';
 interface StopBoardProps {
   site: Site;
   startingLocation?: string;
+  initialMode?: ModeKey;
 }
 
 type ModeKey = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
@@ -17,7 +18,7 @@ const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string;
   ships: { label: 'Ship', color: '#0d8f8f', key: 'ships' },
 };
 
-function StopBoard({ site, startingLocation }: StopBoardProps) {
+function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardProps) {
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,14 +27,14 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
   const [activeMode, setActiveMode] = useState<ModeKey>('all');
 
   useEffect(() => {
-    setActiveMode('all');
+    setActiveMode(initialMode);
     fetchDepartures(false);
     const interval = setInterval(() => {
       fetchDepartures(true);
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [site]);
+  }, [site, initialMode]);
 
   const fetchDepartures = async (silent = false) => {
     if (!silent) {
@@ -96,12 +97,16 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
   const renderDepartures = (items: Departure[], color: string, label: string) => {
     if (!items || items.length === 0) return null;
 
+    const lowerLabel = label.toLowerCase();
+    const sectionTitle = `${label} departures`;
+    const sectionSubtitle = `Next ${lowerLabel} departures from this stop`;
+
     return (
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
           <div>
-            <h3 style={styles.categoryTitle}>{label} buses</h3>
-            <p style={styles.sectionSubtitle}>Next buses from this stop</p>
+            <h3 style={styles.categoryTitle}>{sectionTitle}</h3>
+            <p style={styles.sectionSubtitle}>{sectionSubtitle}</p>
           </div>
 
           <span style={{ ...styles.routeBadge, backgroundColor: color }}>Live</span>
@@ -120,7 +125,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     return (
       <div style={styles.container}>
         <div style={styles.loadingWrap}>
-          <div style={styles.loadingTitle}>Loading live buses</div>
+          <div style={styles.loadingTitle}>Loading live departures</div>
           <div style={styles.loadingText}>Fetching the next transport options for {site.Name}.</div>
         </div>
       </div>
@@ -148,7 +153,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
           <div style={styles.routeLine}>
-            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live buses for ${site.Name}`}
+            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live departures for ${site.Name}`}
           </div>
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
@@ -158,7 +163,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
                 ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                 : 'Waiting for first update'}
             </span>
-            <span style={styles.metaChip}>{totalDepartures} live buses</span>
+            <span style={styles.metaChip}>{totalDepartures} live departures</span>
           </div>
         </div>
 
@@ -202,7 +207,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
 
       {departures && visibleSections.length === 0 && (
         <div style={styles.noDepartures}>
-          No live buses are available for this mode right now.
+          No live departures are available for this mode right now.
         </div>
       )}
     </div>

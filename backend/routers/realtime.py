@@ -13,11 +13,11 @@ from services.sl_api import (
 router = APIRouter()
 
 @router.get("/search")
-async def search_site(query: str, source: str = "key"):
+async def search_site(query: str, source: str = "key", transport_mode: str | None = None):
     """Search for stops/stations by name"""
     try:
         if source == "free":
-            return {"ResponseData": normalize_free_sites(await search_stops_free(query))}
+            return {"ResponseData": normalize_free_sites(await search_stops_free(query, transport_mode=transport_mode))}
         return await search_stops(query)
     except SLApiError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)

@@ -92,6 +92,7 @@ async def search_stops(
 async def search_stops_free(
     query: str,
     *,
+    transport_mode: Optional[str] = None,
     client: Optional[httpx.AsyncClient] = None,
 ) -> list[dict[str, Any]]:
     params = {
@@ -109,7 +110,7 @@ async def search_stops_free(
         results: list[dict[str, Any]] = []
         for item in data:
             name = str(item.get("name", ""))
-            if lower_query in name.lower():
+            if lower_query in name.lower() and _matches_free_site_transport_mode(item, transport_mode):
                 results.append(item)
         return results
 
@@ -117,7 +118,12 @@ async def search_stops_free(
         value = data.get(key)
         if isinstance(value, list):
             lower_query = query.lower().strip()
-            return [item for item in value if lower_query in str(item.get("name", "")).lower()]
+            return [
+                item
+                for item in value
+                if lower_query in str(item.get("name", "")).lower()
+                and _matches_free_site_transport_mode(item, transport_mode)
+            ]
 
     return []
 
@@ -263,16 +269,59 @@ def normalize_free_sites(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [normalize_free_site_result(item) for item in items]
 
 
+def _matches_free_site_transport_mode(item: dict[str, Any], transport_mode: Optional[str]) -> bool:
+    if not transport_mode:
+        return True
+
+    site_signals = [
+        item.get("type"),
+        item.get("transport_mode"),
+        *(value for area in item.get("stop_areas", []) if isinstance(area, dict) for value in area.values()),
+        *(value for area in item.get("stopAreas", []) if isinstance(area, dict) for value in area.values()),
+    ]
+    text = " ".join(str(value or "") for value in site_signals).lower()
+
+    normalized_mode = transport_mode.lower()
+    if normalized_mode == "train":
+        return any(keyword in text for keyword in ("train", "rail", "pendel", "commuter"))
+    if normalized_mode == "bus":
+        return "bus" in text
+
+    return normalized_mode in text
+
+
 def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[str, Any]:
     departures = raw.get("departures") if isinstance(raw, dict) else []
     if departures is None:
         departures = []
 
-    buses = []
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "buses": [],
+        "metros": [],
+        "trains": [],
+        "trams": [],
+        "ships": [],
+    }
+
+    mode_mapping = {
+        "bus": "buses",
+        "metro": "metros",
+        "subway": "metros",
+        "train": "trains",
+        "rail": "trains",
+        "commuter_train": "trains",
+        "tram": "trams",
+        "light_rail": "trams",
+        "ship": "ships",
+        "ferry": "ships",
+    }
+
     for item in departures:
         line = item.get("line") or {}
         stop_deviations = item.get("deviations") or []
-        buses.append(
+        normalized_mode = str(line.get("transport_mode") or "BUS").lower()
+        bucket_key = mode_mapping.get(normalized_mode, "buses")
+        buckets[bucket_key].append(
             {
                 "line_number": str(line.get("designation") or line.get("id") or ""),
                 "destination": item.get("destination") or "",
@@ -280,7 +329,7 @@ def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[
                 "expected_datetime": item.get("expected") or "",
                 "journey_direction": item.get("direction_code") or 0,
                 "group_of_line": line.get("group_of_lines") or "",
-                "transport_mode": str(line.get("transport_mode") or "BUS").lower(),
+                "transport_mode": normalized_mode,
                 "deviations": stop_deviations if isinstance(stop_deviations, list) else [stop_deviations],
                 "has_deviations": bool(stop_deviations),
             }
@@ -294,10 +343,10 @@ def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[
         "site_id": site_id,
         "site_name": raw.get("site_name", "") if isinstance(raw, dict) else "",
         "status": "ok",
-        "buses": buses,
-        "metros": [],
-        "trains": [],
-        "trams": [],
-        "ships": [],
+        "buses": buckets["buses"],
+        "metros": buckets["metros"],
+        "trains": buckets["trains"],
+        "trams": buckets["trams"],
+        "ships": buckets["ships"],
         "stop_deviations": stop_deviations,
     }

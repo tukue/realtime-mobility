@@ -84,6 +84,33 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data[0]["name"], "Stockholm Odenplan")
         self.assertEqual(client.calls[0]["params"]["expand"], "true")
 
+    async def test_search_stops_free_can_filter_transport_mode(self):
+        client = FakeClient(
+            {
+                "https://transport.integration.sl.se/v1/sites": FakeResponse(
+                    [
+                        {
+                            "id": 1079,
+                            "name": "Stockholm Odenplan",
+                            "type": "Station",
+                            "stop_areas": [{"transport_mode": "TRAIN"}],
+                        },
+                        {
+                            "id": 1080,
+                            "name": "Stockholm Odenplan Busstorg",
+                            "type": "Stop",
+                            "stop_areas": [{"transport_mode": "BUS"}],
+                        },
+                    ]
+                )
+            }
+        )
+
+        data = await search_stops_free("Odenplan", transport_mode="train", client=client)
+
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["name"], "Stockholm Odenplan")
+
     async def test_fetch_realtime_departures_returns_raw_data(self):
         client = FakeClient(
             {
@@ -267,6 +294,17 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
                         "group_of_lines": "Inner city",
                     },
                     "deviations": [{"message": "Minor delay"}],
+                },
+                {
+                    "destination": "Uppsala",
+                    "display": "8 min",
+                    "expected": "2026-03-29T12:08:00",
+                    "direction_code": 1,
+                    "line": {
+                        "designation": "40",
+                        "transport_mode": "TRAIN",
+                        "group_of_lines": "Pendeltag",
+                    },
                 }
             ],
             "stop_deviations": [{"message": "Platform change"}],
@@ -277,6 +315,8 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["site_id"], 9117)
         self.assertEqual(payload["buses"][0]["line_number"], "4")
         self.assertEqual(payload["buses"][0]["transport_mode"], "bus")
+        self.assertEqual(payload["trains"][0]["line_number"], "40")
+        self.assertEqual(payload["trains"][0]["transport_mode"], "train")
         self.assertEqual(payload["status"], "ok")
 
 
