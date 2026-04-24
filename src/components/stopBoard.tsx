@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Site, DepartureData, Departure } from '../types';
 import DepartureCard from './DepartureCard';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface StopBoardProps {
   site: Site;
@@ -19,6 +20,7 @@ const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string;
 };
 
 function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardProps) {
+  const isMobile = useMediaQuery('(max-width: 720px)');
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,17 +28,27 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeMode, setActiveMode] = useState<ModeKey>('all');
 
+  const isMounted = useRef(true);
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
+    isMounted.current = true;
     setActiveMode(initialMode);
     fetchDepartures(false);
+
     const interval = setInterval(() => {
       fetchDepartures(true);
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted.current = false;
+      clearInterval(interval);
+    };
   }, [site, initialMode]);
 
   const fetchDepartures = async (silent = false) => {
+    const requestId = ++requestIdRef.current;
+
     if (!silent) {
       setLoading(true);
     } else {
@@ -49,6 +61,8 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
       const response = await fetch(`/api/departures/format/${site.SiteId}?source=free`);
       const data = await response.json();
 
+      if (!isMounted.current || requestId !== requestIdRef.current) return;
+
       if (!response.ok) {
         throw new Error(data?.detail || 'Failed to fetch departures');
       }
@@ -56,11 +70,15 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
       setDepartures(data as DepartureData);
       setLastUpdated(new Date());
     } catch (err) {
-      setError('Unable to load departures from the SL free API. Please try again.');
+      if (isMounted.current && requestId === requestIdRef.current) {
+        setError('Unable to load departures from the SL free API. Please try again.');
+      }
       console.error(err);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMounted.current && requestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -97,16 +115,12 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
   const renderDepartures = (items: Departure[], color: string, label: string) => {
     if (!items || items.length === 0) return null;
 
-    const lowerLabel = label.toLowerCase();
-    const sectionTitle = `${label} departures`;
-    const sectionSubtitle = `Next ${lowerLabel} departures from this stop`;
-
     return (
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
           <div>
-            <h3 style={styles.categoryTitle}>{sectionTitle}</h3>
-            <p style={styles.sectionSubtitle}>{sectionSubtitle}</p>
+            <h3 style={styles.categoryTitle}>{label} departures</h3>
+            <p style={styles.sectionSubtitle}>Next {label.toLowerCase()} departures from this stop</p>
           </div>
 
           <span style={{ ...styles.routeBadge, backgroundColor: color }}>Live</span>
@@ -147,8 +161,8 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
+    <div style={isMobile ? { ...styles.container, padding: '18px' } : styles.container}>
+      <div style={isMobile ? { ...styles.header, flexDirection: 'column' } : styles.header}>
         <div>
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
@@ -172,7 +186,7 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
         </button>
       </div>
 
-      <div style={styles.modeBar}>
+      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>
         <button
           type="button"
           onClick={() => setActiveMode('all')}

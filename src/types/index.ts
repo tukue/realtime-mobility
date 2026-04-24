@@ -4,7 +4,7 @@ export interface Site {
   Type: string;
   X: string;
   Y: string;
-  StopAreas?: Array<Record<string, unknown>>;
+  distance_meters?: number;
 }
 
 export interface Departure {
@@ -33,4 +33,11 @@ export interface FavoriteStop {
   site_id: string;
   site_name: string;
   created_at: string;
+}
+
+export interface NearbyStopBoard extends Site {
+  departures?: DepartureData & {
+    error?: string;
+    status?: string;
+  };
 }

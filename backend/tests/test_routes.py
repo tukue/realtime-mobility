@@ -1,6 +1,6 @@
 import unittest
 
-from routers import departures, realtime, situations
+from routers import departures, nearby, realtime, situations
 
 
 class RouteTests(unittest.IsolatedAsyncioTestCase):
@@ -25,11 +25,11 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         original = realtime.search_stops
         realtime.search_stops = fake_search
         try:
-            payload = await realtime.search_site("Odenplan")
+            payload = await realtime.search_site("Norgegatan")
         finally:
             realtime.search_stops = original
 
-        self.assertEqual(payload["ResponseData"][0]["Name"], "Odenplan")
+        self.assertEqual(payload["ResponseData"][0]["Name"], "Norgegatan")
 
     async def test_realtime_search_route_can_use_free_source(self):
         async def fake_search_free(query, transport_mode=None, client=None):
@@ -38,11 +38,11 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
         original = realtime.search_stops_free
         realtime.search_stops_free = fake_search_free
         try:
-            payload = await realtime.search_site("Odenplan", source="free")
+            payload = await realtime.search_site("Norgegatan", source="free")
         finally:
             realtime.search_stops_free = original
 
-        self.assertEqual(payload["ResponseData"][0]["Name"], "Odenplan")
+        self.assertEqual(payload["ResponseData"][0]["Name"], "Norgegatan")
 
     async def test_realtime_search_route_passes_transport_mode_to_free_source(self):
         async def fake_search_free(query, transport_mode=None, client=None):
@@ -85,6 +85,61 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["alerts"][0]["message"], "Delay")
+
+    async def test_nearby_route_uses_free_source(self):
+        async def fake_nearby(lat, lon, limit=5, client=None):
+            return [
+                {
+                    "SiteId": "1079",
+                    "Name": "Norgegatan",
+                    "Type": "Stop",
+                    "X": "18.0456865578456",
+                    "Y": "59.3431180362708",
+                    "distance_meters": 123,
+                }
+            ]
+
+        original = nearby.get_nearby_free_sites
+        nearby.get_nearby_free_sites = fake_nearby
+        try:
+            payload = await nearby.get_nearby_stops(lat=59.34, lon=18.04)
+        finally:
+            nearby.get_nearby_free_sites = original
+
+        self.assertEqual(payload["ResponseData"][0]["Name"], "Norgegatan")
+        self.assertEqual(payload["ResponseData"][0]["distance_meters"], 123)
+
+    async def test_nearby_boards_route_attaches_departures(self):
+        async def fake_boards(lat, lon, limit=3, client=None):
+            return [
+                {
+                    "SiteId": "1079",
+                    "Name": "Norgegatan",
+                    "Type": "Stop",
+                    "X": "18.0456865578456",
+                    "Y": "59.3431180362708",
+                    "distance_meters": 123,
+                    "departures": {
+                        "site_id": 1079,
+                        "site_name": "Norgegatan",
+                        "status": "ok",
+                        "buses": [{"line_number": "4", "destination": "Radiohuset"}],
+                        "metros": [],
+                        "trains": [],
+                        "trams": [],
+                        "ships": [],
+                    },
+                }
+            ]
+
+        original = nearby.get_nearby_free_boards
+        nearby.get_nearby_free_boards = fake_boards
+        try:
+            payload = await nearby.get_nearby_stop_boards(lat=59.34, lon=18.04)
+        finally:
+            nearby.get_nearby_free_boards = original
+
+        self.assertEqual(payload["ResponseData"][0]["departures"]["buses"][0]["destination"], "Radiohuset")
 
 
 if __name__ == "__main__":

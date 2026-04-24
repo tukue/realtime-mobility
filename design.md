@@ -12,8 +12,6 @@ The app should let a rider:
 
 This is not a full journey planner. It is a focused “check transit now” tool.
 
-Current MVP: the app uses typed stop, station, or area input for nearby-bus discovery. Live geolocation is a later enhancement, not a prerequisite for the core flow.
-
 ## 2. Core Use Cases
 
 ### 2.1 Quick live-board check
@@ -27,9 +25,6 @@ User checks buses, metro, trains, trams, and ships from the same stop without sw
 
 ### 2.4 Deployment confidence
 User can tell whether the backend is reachable and whether live data is loading correctly.
-
-### 2.5 Nearby-bus shortcut
-User enters a starting location and quickly sees the closest matching stops without needing to grant browser location access.
 
 ## 3. Product Principles
 
@@ -184,6 +179,15 @@ The app should be easy to deploy in a simple setup:
 - Health check endpoint should be available
 - README should clearly explain startup order and port expectations
 
+### 10.1 Deployment User Story
+As a maintainer, I want to deploy the frontend to Vercel or another static hosting platform and connect it to the backend API in a separate deployment, so I can ship the app without changing the codebase for each platform.
+
+Acceptance criteria:
+- The frontend builds successfully for static hosting.
+- Backend API URLs and environment variables are documented.
+- The deployment works on Vercel, Netlify, or a similar host with the same build output.
+- The app still shows backend health and live transit data after deployment.
+
 ## 11. Success Criteria
 
 The redesign is successful if:
@@ -207,8 +211,8 @@ The redesign is successful if:
 - Departure card refinements
 
 ### Phase 3
-- Nearby stops from typed starting input
-- Optional location-based shortcuts
+- Nearby stops
+- Location-based shortcuts
 - More deployment polish
 
 ## 13. Open Questions

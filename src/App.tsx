@@ -3,14 +3,20 @@ import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import { Site } from './types';
-
-type BoardMode = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
-type NearbyMode = 'buses' | 'trains';
 
 const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
 const STARTING_LOCATION_KEY = 'realtime-mobility.starting-location';
 const MAX_RECENTS = 4;
+
+type GeoLocation = {
+  latitude: number;
+  longitude: number;
+};
+
+type BoardMode = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
+type NearbyMode = 'buses' | 'trains';
 
 function loadRecentSites(): Site[] {
   try {
@@ -32,10 +38,14 @@ function loadRecentSites(): Site[] {
 }
 
 function App() {
+  const isMobile = useMediaQuery('(max-width: 900px)');
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [selectedMode, setSelectedMode] = useState<BoardMode>('all');
   const [nearbyMode, setNearbyMode] = useState<NearbyMode>('buses');
   const [startingLocation, setStartingLocation] = useState('');
+  const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
@@ -105,17 +115,56 @@ function App() {
     });
   };
 
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Your browser does not support location access. Use the manual input instead.');
+      return;
+    }
+
+    setGeoLoading(true);
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGeoLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setGeoLoading(false);
+      },
+      (error) => {
+        setGeoLocation(null);
+        setGeoLoading(false);
+        setGeoError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location permission was denied. Use the manual starting position instead.'
+            : 'Could not read your location right now. Use the manual starting position instead.'
+        );
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000,
+      }
+    );
+  };
+
+  const handleUseManualInput = () => {
+    setGeoLocation(null);
+    setGeoError(null);
+  };
+
   return (
     <div style={styles.shell}>
       <div style={styles.glowLeft} />
       <div style={styles.glowRight} />
 
-      <main style={styles.container}>
+      <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
           <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
           <p style={styles.subtitle}>
-            Search a stop or station, save the ones you use often, and keep the board open while you move.
+            Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
           </p>
 
           <div style={styles.pills}>
@@ -128,14 +177,20 @@ function App() {
           </div>
         </header>
 
-        <section style={styles.grid}>
+        <section
+          style={
+            isMobile
+              ? { ...styles.grid, gridTemplateColumns: 'minmax(0, 1fr)', gap: '16px' }
+              : styles.grid
+          }
+        >
           <aside style={styles.sidebar}>
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Find a stop</div>
               <SearchBar onSiteSelect={handleSiteSelect} />
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Nearby transport</div>
               <div style={styles.transportModeBar}>
                 <button
@@ -147,32 +202,60 @@ function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setNearbyMode('trains')}
+                  onClick={() => {
+                    setNearbyMode('trains');
+                    setGeoLocation(null);
+                    setGeoError(null);
+                  }}
                   style={nearbyMode === 'trains' ? { ...styles.transportModeButton, ...styles.transportModeButtonActive } : styles.transportModeButton}
                 >
                   Train
                 </button>
               </div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
-                {nearbyMode === 'trains' ? 'Enter your location to find train stations' : 'Enter your location to find bus stops'}
+                {nearbyMode === 'trains' ? 'Enter your location to find train stations' : 'Type a stop, station, or area'}
               </label>
               <input
                 id="starting-location"
                 type="text"
                 value={startingLocation}
                 onChange={(e) => setStartingLocation(e.target.value)}
-                placeholder={nearbyMode === 'trains' ? 'Area, stop, or station near the train' : 'Area, stop, or station near the bus'}
+                placeholder={nearbyMode === 'trains' ? 'Area, stop, or station near the train' : 'Stop, station, or area'}
                 style={styles.startInput}
               />
               <div style={styles.helperText}>
-                Choose the transport first, then enter the location you want to search from.
+                {nearbyMode === 'trains'
+                  ? 'Train lookup uses typed locations and station search.'
+                  : 'Use a typed starting point or tap the location button to rank the closest stops automatically.'}
               </div>
+              {nearbyMode === 'buses' && (
+                <>
+                  <div style={styles.locationActions}>
+                    <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
+                      {geoLoading ? 'Locating...' : geoLocation ? 'Refresh nearby buses' : 'Find nearby buses'}
+                    </button>
+                    {geoLocation && (
+                      <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
+                        Use manual input
+                      </button>
+                    )}
+                  </div>
+                  {geoLocation && <div style={styles.locationStatus}>Using your live location to rank the nearest live bus stops.</div>}
+                  {geoError && <div style={styles.locationError}>{geoError}</div>}
+                </>
+              )}
               <div style={styles.nearbyWrap}>
-                <NearbyStops startingPosition={startingLocation} mode={nearbyMode} onStopSelect={handleSiteSelect} />
+                <NearbyStops
+                  startingPosition={startingLocation}
+                  mode={nearbyMode}
+                  latitude={geoLocation?.latitude ?? null}
+                  longitude={geoLocation?.longitude ?? null}
+                  onStopSelect={handleSiteSelect}
+                />
               </div>
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Recent stops</div>
               {recentSites.length > 0 ? (
                 <div style={styles.stack}>
@@ -195,16 +278,16 @@ function App() {
               )}
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Saved stops</div>
               <FavoritesList onSiteSelect={handleSiteSelect} />
             </div>
 
-            <div style={styles.card}>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>How it works</div>
               <ol style={styles.steps}>
-                <li>Search for a stop or pick a favourite.</li>
-                <li>For nearby train stations, click Train first and then enter your location.</li>
+                <li>Search for a stop or enter a starting position.</li>
+                <li>Use nearby buses to jump to the closest live stop boards.</li>
                 <li>Switch modes or refresh the board while you travel.</li>
               </ol>
             </div>
@@ -214,14 +297,14 @@ function App() {
             {selectedSite ? (
               <StopBoard site={selectedSite} startingLocation={startingLocation} initialMode={selectedMode} />
             ) : (
-              <div style={styles.emptyState}>
+              <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop to see live departures.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live buses.</h2>
                 <p style={styles.emptyText}>
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Try a central stop like Skanstull, Odenplan, or Stureplan, then add your starting location if needed.
+                  Try a central stop like Skanstull, Odenplan, or Stureplan, or use nearby buses to jump in faster.
                 </div>
               </div>
             )}
@@ -413,6 +496,42 @@ const styles: Record<string, React.CSSProperties> = {
   },
   helperText: {
     color: 'var(--muted)',
+    fontSize: '0.88rem',
+    lineHeight: 1.5,
+  },
+  locationActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+    marginTop: '12px',
+  },
+  locationButton: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    border: '1px solid rgba(104, 183, 255, 0.35)',
+    background: 'rgba(104, 183, 255, 0.14)',
+    color: '#c7e6ff',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  locationButtonSecondary: {
+    padding: '10px 14px',
+    borderRadius: '999px',
+    border: '1px solid var(--border)',
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: 'var(--text)',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  locationStatus: {
+    marginTop: '10px',
+    color: '#bdf7d5',
+    fontSize: '0.88rem',
+    fontWeight: 700,
+  },
+  locationError: {
+    marginTop: '10px',
+    color: '#ffd2d2',
     fontSize: '0.88rem',
     lineHeight: 1.5,
   },

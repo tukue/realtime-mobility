@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import asyncio
+import math
 import os
 from typing import Any, Iterable, Optional
 
 import httpx
 
-SL_TYPEAHEAD_URL = "https://journeyplanner.integration.sl.se/v1/typeahead.json"
-SL_REALTIME_URL = "https://api.sl.se/api2/realtimedeparturesV4.json"
-SL_SITUATION_URL = "https://api.sl.se/api2/deviations.json"
-SL_FREE_SITES_URL = "https://transport.integration.sl.se/v1/sites"
-SL_FREE_DEPARTURES_URL = "https://transport.integration.sl.se/v1/sites/{site_id}/departures"
-SL_FREE_DEVIATIONS_URL = "https://deviations.integration.sl.se/v1/messages"
+from services.sl_config import (
+    get_sl_free_departures_url,
+    get_sl_free_deviations_url,
+    get_sl_free_sites_url,
+    get_sl_realtime_url,
+    get_sl_situation_url,
+    get_sl_typeahead_url,
+)
 
 
 class SLApiError(Exception):
@@ -22,6 +26,19 @@ class SLApiError(Exception):
 
 def _get_api_key(name: str) -> str:
     return os.getenv(name, "")
+
+
+def _extract_site_items(data: Any) -> list[dict[str, Any]]:
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+
+    if isinstance(data, dict):
+        for key in ("sites", "results", "stopPlaces", "stop_areas", "items"):
+            value = data.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+
+    return []
 
 
 async def _fetch_json(
@@ -86,7 +103,7 @@ async def search_stops(
         "stationsonly": "true" if stations_only else "false",
         "maxresults": max_results,
     }
-    return await _fetch_json(SL_TYPEAHEAD_URL, params, client=client)
+    return await _fetch_json(get_sl_typeahead_url(), params, client=client)
 
 
 async def search_stops_free(
@@ -99,33 +116,131 @@ async def search_stops_free(
         "expand": "true",
     }
     data = await _fetch_json(
-        SL_FREE_SITES_URL,
+        get_sl_free_sites_url(),
         params,
         client=client,
         require_api_key=False,
     )
 
-    if isinstance(data, list):
-        lower_query = query.lower().strip()
-        results: list[dict[str, Any]] = []
-        for item in data:
-            name = str(item.get("name", ""))
-            if lower_query in name.lower() and _matches_free_site_transport_mode(item, transport_mode):
-                results.append(item)
-        return results
+    lower_query = query.lower().strip()
+    results: list[dict[str, Any]] = []
+    for item in _extract_site_items(data):
+        name = str(item.get("name", ""))
+        if lower_query in name.lower() and _matches_free_site_transport_mode(item, transport_mode):
+            results.append(item)
 
-    for key in ("sites", "results", "stopPlaces", "stop_areas", "items"):
-        value = data.get(key)
-        if isinstance(value, list):
-            lower_query = query.lower().strip()
-            return [
-                item
-                for item in value
-                if lower_query in str(item.get("name", "")).lower()
-                and _matches_free_site_transport_mode(item, transport_mode)
-            ]
+    return results
 
-    return []
+
+async def fetch_free_sites_catalog(
+    *,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    params = {
+        "expand": "true",
+    }
+    data = await _fetch_json(
+        get_sl_free_sites_url(),
+        params,
+        client=client,
+        require_api_key=False,
+    )
+    return _extract_site_items(data)
+
+
+def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    earth_radius_m = 6371000.0
+    lat1_rad = math.radians(lat1)
+    lon1_rad = math.radians(lon1)
+    lat2_rad = math.radians(lat2)
+    lon2_rad = math.radians(lon2)
+
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return earth_radius_m * c
+
+
+async def get_nearby_free_sites(
+    latitude: float,
+    longitude: float,
+    *,
+    limit: int = 5,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    sites = await fetch_free_sites_catalog(client=client)
+    nearby_sites: list[dict[str, Any]] = []
+
+    for item in sites:
+        try:
+            lat_value = item.get("lat")
+            if lat_value is None:
+                lat_value = item.get("y")
+            lon_value = item.get("lon")
+            if lon_value is None:
+                lon_value = item.get("x")
+            if lat_value is None or lon_value is None:
+                continue
+
+            site_lat = float(lat_value)
+            site_lon = float(lon_value)
+        except (TypeError, ValueError):
+            continue
+
+        distance_meters = int(round(_haversine_meters(latitude, longitude, site_lat, site_lon)))
+        normalized = normalize_free_site_result(item)
+        normalized["distance_meters"] = distance_meters
+        nearby_sites.append(normalized)
+
+    nearby_sites.sort(key=lambda site: (site.get("distance_meters", 0), site.get("Name", "")))
+    return nearby_sites[: max(limit, 0)]
+
+
+async def get_nearby_free_boards(
+    latitude: float,
+    longitude: float,
+    *,
+    limit: int = 3,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    nearby_sites = await get_nearby_free_sites(latitude, longitude, limit=limit, client=client)
+
+    async def _attach_departures(site: dict[str, Any]) -> dict[str, Any]:
+        site_id_raw = site.get("SiteId", "")
+        try:
+            site_id = int(site_id_raw)
+        except (TypeError, ValueError):
+            return {**site, "departures": normalize_free_departure_payload({}, 0)}
+
+        try:
+            raw_departures = await fetch_realtime_departures_free(site_id, client=client)
+            departures = normalize_free_departure_payload(raw_departures, site_id)
+            departures["site_name"] = site.get("Name", departures.get("site_name", ""))
+        except SLApiError as exc:
+            departures = {
+                "site_id": site_id,
+                "site_name": site.get("Name", ""),
+                "status": "error",
+                "buses": [],
+                "metros": [],
+                "trains": [],
+                "trams": [],
+                "ships": [],
+                "stop_deviations": [],
+                "error": exc.message,
+            }
+
+        return {**site, "departures": departures}
+
+    if not nearby_sites:
+        return []
+
+    return list(await asyncio.gather(*(_attach_departures(site) for site in nearby_sites)))
 
 
 async def fetch_realtime_departures(
@@ -139,7 +254,7 @@ async def fetch_realtime_departures(
         "siteid": site_id,
         "timewindow": time_window,
     }
-    data = await _fetch_json(SL_REALTIME_URL, params, client=client)
+    data = await _fetch_json(get_sl_realtime_url(), params, client=client)
 
     if data.get("StatusCode") not in (None, 0):
         raise SLApiError(
@@ -155,7 +270,7 @@ async def fetch_realtime_departures_free(
     *,
     client: Optional[httpx.AsyncClient] = None,
 ) -> dict[str, Any]:
-    url = SL_FREE_DEPARTURES_URL.format(site_id=site_id)
+    url = get_sl_free_departures_url().format(site_id=site_id)
     return await _fetch_json(url, {}, client=client, require_api_key=False)
 
 
@@ -171,7 +286,7 @@ async def fetch_service_alerts(
     if transport_mode:
         params["transportMode"] = transport_mode
 
-    data = await _fetch_json(SL_SITUATION_URL, params, client=client)
+    data = await _fetch_json(get_sl_situation_url(), params, client=client)
     if data.get("StatusCode") != 0:
         return {
             "status": "no_data",
@@ -198,7 +313,7 @@ async def fetch_service_alerts_free(
         params["transport_mode"] = transport_mode.upper()
 
     data = await _fetch_json(
-        SL_FREE_DEVIATIONS_URL,
+        get_sl_free_deviations_url(),
         params,
         client=client,
         require_api_key=False,
