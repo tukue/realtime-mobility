@@ -110,6 +110,9 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       : modeSections.filter((section) => section.mode === activeMode);
 
   const totalDepartures = modeSections.reduce((sum, section) => sum + section.count, 0);
+  const lastUpdatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : 'waiting for first refresh';
 
   const renderDepartures = (items: Departure[], color: string, label: string) => {
     if (!items || items.length === 0) return null;
@@ -118,11 +121,11 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
           <div>
-            <h3 style={styles.categoryTitle}>{label} buses</h3>
-            <p style={styles.sectionSubtitle}>Next buses from this stop</p>
+            <h3 style={styles.categoryTitle}>{label} departures</h3>
+            <p style={styles.sectionSubtitle}>The next live updates for this mode</p>
           </div>
 
-          <span style={{ ...styles.routeBadge, backgroundColor: color }}>Live</span>
+          <span style={{ ...styles.routeBadge, backgroundColor: color }}>{items.length} live</span>
         </div>
 
         <div style={styles.departureGrid}>
@@ -138,7 +141,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     return (
       <div style={styles.container}>
         <div style={styles.loadingWrap}>
-          <div style={styles.loadingTitle}>Loading live buses</div>
+          <div style={styles.loadingTitle}>Loading live departures</div>
           <div style={styles.loadingText}>Fetching the next transport options for {site.Name}.</div>
         </div>
       </div>
@@ -166,17 +169,13 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
           <div style={styles.routeLine}>
-            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live buses for ${site.Name}`}
+            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live departures for ${site.Name}`}
           </div>
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
             <span style={styles.metaChip}>{refreshing ? 'Refreshing now' : 'Auto refresh on'}</span>
-            <span style={styles.metaChip}>
-              {lastUpdated
-                ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : 'Waiting for first update'}
-            </span>
-            <span style={styles.metaChip}>{totalDepartures} live buses</span>
+            <span style={styles.metaChip}>{`Updated ${lastUpdatedLabel}`}</span>
+            <span style={styles.metaChip}>{totalDepartures} live departures</span>
           </div>
         </div>
 
@@ -220,7 +219,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
 
       {departures && visibleSections.length === 0 && (
         <div style={styles.noDepartures}>
-          No live buses are available for this mode right now.
+          No live departures are available for this mode right now.
         </div>
       )}
     </div>
@@ -288,7 +287,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 10px',
     borderRadius: '999px',
     background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid var(--border)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     color: 'var(--muted)',
     fontSize: '0.82rem',
     fontWeight: 700,

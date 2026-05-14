@@ -22,11 +22,17 @@
   --success: #71d39b;
 }
 
+::selection {
+  background: rgba(104, 183, 255, 0.28);
+  color: var(--text);
+}
+
 html {
   background:
-    radial-gradient(circle at top left, rgba(104, 183, 255, 0.22), transparent 35%),
-    radial-gradient(circle at top right, rgba(247, 185, 85, 0.18), transparent 28%),
-    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
+    radial-gradient(circle at top left, rgba(104, 183, 255, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(247, 185, 85, 0.16), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(113, 211, 155, 0.08), transparent 22%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 46%, var(--bg-2) 100%);
 }
 
 body {
@@ -38,6 +44,19 @@ body {
   color: var(--text);
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.14;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 85%);
+}
+
 button,
 input {
   font: inherit;
@@ -45,6 +64,35 @@ input {
 
 button {
   cursor: pointer;
+}
+
+button,
+input,
+select {
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(104, 183, 255, 0.65);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 #root {

@@ -13,7 +13,7 @@ function DepartureCard({ departure, color }: DepartureCardProps) {
   return (
     <div style={styles.card}>
       <div style={{ ...styles.lineNumber, backgroundColor: color }}>
-        <span>{departure.line_number}</span>
+        <span style={styles.lineNumberLabel}>{departure.line_number}</span>
         <span style={styles.modeTag}>{transportMode}</span>
       </div>
 
@@ -36,16 +36,16 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     display: 'flex',
     alignItems: 'stretch',
-    gap: '14px',
+    gap: '16px',
     padding: '16px',
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '20px',
-    border: '1px solid var(--border)',
-    transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.04) 100%)',
+    borderRadius: '22px',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
+    boxShadow: '0 18px 40px rgba(0, 0, 0, 0.12)',
   },
   lineNumber: {
-    minWidth: '56px',
-    height: '56px',
+    minWidth: '60px',
+    height: '60px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -56,6 +56,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: '800',
     fontSize: '1rem',
     letterSpacing: '-0.02em',
+  },
+  lineNumberLabel: {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontSize: '1.15rem',
+    lineHeight: 1,
   },
   modeTag: {
     fontSize: '0.58rem',
@@ -80,9 +85,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   time: {
     fontFamily: "'Space Grotesk', sans-serif",
-    fontSize: '1.45rem',
+    fontSize: '1.5rem',
     fontWeight: 700,
-    color: 'var(--accent)',
+    color: '#ffdca1',
     letterSpacing: '-0.03em',
     whiteSpace: 'nowrap',
   },

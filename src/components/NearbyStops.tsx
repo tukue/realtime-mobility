@@ -96,7 +96,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
   }
 
   const title = hasCoordinates
-    ? 'Live buses near your location'
+    ? 'Live boards near your location'
     : startingPosition.trim()
       ? `Search results for ${startingPosition.trim()}`
       : 'Nearby stops';
@@ -105,7 +105,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
     <div style={styles.container}>
       <div style={isMobile ? { ...styles.header, flexDirection: 'column', alignItems: 'flex-start' } : styles.header}>
         <div>
-          <div style={styles.label}>{hasCoordinates ? 'Nearby buses' : 'Nearby stops'}</div>
+          <div style={styles.label}>{hasCoordinates ? 'Nearby boards' : 'Nearby stops'}</div>
           <div style={styles.title}>{title}</div>
         </div>
         {loading && <div style={styles.loader}>{hasCoordinates ? 'Loading nearby buses...' : 'Searching...'}</div>}
@@ -118,6 +118,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
             const busPreview = departures?.buses?.slice(0, 2) ?? [];
             const hasPreview = busPreview.length > 0;
             const status = departures?.status === 'error' ? departures.error || 'Live departures unavailable' : null;
+            const modeSummary = buildModeSummary(departures);
 
             return (
               <button
@@ -162,6 +163,16 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                       ) : (
                         <div style={styles.previewFallback}>No live bus departures right now.</div>
                       )}
+                    </div>
+                  )}
+
+                  {modeSummary.length > 0 && (
+                    <div style={styles.modeSummary}>
+                      {modeSummary.map((item) => (
+                        <span key={`${site.SiteId}-${item.label}`} style={styles.modeChip}>
+                          {item.label} {item.count}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -317,6 +328,21 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.88rem',
   },
+  modeSummary: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '2px',
+  },
+  modeChip: {
+    padding: '5px 9px',
+    borderRadius: '999px',
+    background: 'rgba(104, 183, 255, 0.12)',
+    color: '#c7e6ff',
+    border: '1px solid rgba(104, 183, 255, 0.18)',
+    fontSize: '0.74rem',
+    fontWeight: 800,
+  },
   cardMetaRow: {
     display: 'flex',
     alignItems: 'center',
@@ -398,4 +424,20 @@ async function fetchNearbyStopBoards(
   }
 
   return data.ResponseData || [];
+}
+
+function buildModeSummary(departures?: NearbyStopBoard['departures']) {
+  if (!departures) {
+    return [];
+  }
+
+  const counts = [
+    { label: 'Bus', count: departures.buses?.length ?? 0 },
+    { label: 'Metro', count: departures.metros?.length ?? 0 },
+    { label: 'Train', count: departures.trains?.length ?? 0 },
+    { label: 'Tram', count: departures.trams?.length ?? 0 },
+    { label: 'Ship', count: departures.ships?.length ?? 0 },
+  ].filter((item) => item.count > 0);
+
+  return counts.slice(0, 4);
 }
