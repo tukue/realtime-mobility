@@ -242,47 +242,6 @@ async def get_nearby_free_boards(
     return list(await asyncio.gather(*(_attach_departures(site) for site in nearby_sites)))
 
 
-async def get_nearby_free_train_boards(
-    latitude: float,
-    longitude: float,
-    *,
-    limit: int = 3,
-    client: Optional[httpx.AsyncClient] = None,
-) -> list[dict[str, Any]]:
-    """Fetch nearby sites and filter to only those with train/metro departures."""
-    scout_count = max(limit * 5, 15)
-    nearby_sites = await get_nearby_free_sites(latitude, longitude, limit=scout_count, client=client)
-
-    async def _attach_and_filter(site: dict[str, Any]) -> dict[str, Any] | None:
-        site_id_raw = site.get("SiteId", "")
-        try:
-            site_id = int(site_id_raw)
-        except (TypeError, ValueError):
-            return None
-
-        try:
-            raw_departures = await fetch_realtime_departures_free(site_id, client=client)
-            departures = normalize_free_departure_payload(raw_departures, site_id)
-            departures["site_name"] = site.get("Name", departures.get("site_name", ""))
-        except SLApiError:
-            return None
-
-        all_deps = departures.get("buses", [])
-        has_train = any(d.get("transport_mode") == "train" for d in all_deps)
-        has_metro = any(d.get("transport_mode") == "metro" for d in all_deps)
-        if not has_train and not has_metro:
-            return None
-
-        return {**site, "departures": departures}
-
-    if not nearby_sites:
-        return []
-
-    results = await asyncio.gather(*(_attach_and_filter(site) for site in nearby_sites))
-    filtered = [r for r in results if r is not None]
-    return filtered[: max(limit, 0)]
-
-
 async def fetch_realtime_departures(
     site_id: int,
     *,
