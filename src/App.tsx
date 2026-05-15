@@ -3,7 +3,7 @@ import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
-import NearbyTrainStations from './components/NearbyTrainStations';
+
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { Site } from './types';
 
@@ -159,9 +159,9 @@ function App() {
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
-          <h1 style={styles.title}>Find your stop, then check the nearby buses</h1>
+          <h1 style={styles.title}>Find your stop, then check nearby departures</h1>
           <p style={styles.subtitle}>
-            Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
+            Search a stop or station, save the ones you use often, or use nearby stops to jump straight into the closest live boards.
           </p>
 
           <div style={styles.pills}>
@@ -220,13 +220,6 @@ function App() {
                   longitude={geoLocation?.longitude ?? null}
                   onStopSelect={handleSiteSelect}
                 />
-                {geoLocation && (
-                  <NearbyTrainStations
-                    latitude={geoLocation?.latitude ?? null}
-                    longitude={geoLocation?.longitude ?? null}
-                    onStopSelect={handleSiteSelect}
-                  />
-                )}
               </div>
             </div>
 
@@ -262,7 +255,7 @@ function App() {
               <div style={styles.cardLabel}>How it works</div>
               <ol style={styles.steps}>
                 <li>Search for a stop or enter a starting position.</li>
-                <li>Use nearby buses to jump to the closest live stop boards.</li>
+                <li>Use nearby stops to jump to the closest live boards.</li>
                 <li>Switch modes or refresh the board while you travel.</li>
               </ol>
             </div>
@@ -274,12 +267,12 @@ function App() {
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live buses.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live departures.</h2>
                 <p style={styles.emptyText}>
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Use nearby buses to travel.
+                  Use nearby stops to travel.
                 </div>
               </div>
             )}

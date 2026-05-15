@@ -10,13 +10,17 @@ interface NearbyStopsProps {
   onStopSelect: (site: Site) => void;
 }
 
+type ModeFilter = 'all' | 'bus' | 'train';
+
 function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: NearbyStopsProps) {
   const isMobile = useMediaQuery('(max-width: 720px)');
   const [results, setResults] = useState<NearbyStopBoard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
   const autoSelectedSiteId = useRef<string | null>(null);
+  const userInteracted = useRef(false);
   const onStopSelectRef = useRef(onStopSelect);
   const hasCoordinates = typeof latitude === 'number' && typeof longitude === 'number';
 
@@ -45,7 +49,9 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
 
       try {
         const sites = hasCoordinates
-          ? await fetchNearbyStopBoards(latitude, longitude)
+          ? modeFilter === 'train'
+            ? await fetchNearbyTrainBoards(latitude, longitude)
+            : await fetchNearbyStopBoards(latitude, longitude)
           : await searchStops(query);
 
         if (!isMounted) {
@@ -55,7 +61,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
         setResults(sites.slice(0, hasCoordinates ? 3 : 5));
         setShowResults(true);
 
-        if (hasCoordinates && sites.length > 0) {
+        if (hasCoordinates && sites.length > 0 && !userInteracted.current) {
           const closestSite = sites[0];
           if (closestSite.SiteId !== autoSelectedSiteId.current) {
             autoSelectedSiteId.current = closestSite.SiteId;
@@ -82,7 +88,17 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
       isMounted = false;
       window.clearTimeout(timeoutId);
     };
-  }, [hasCoordinates, latitude, longitude, startingPosition]);
+  }, [hasCoordinates, latitude, longitude, startingPosition, modeFilter]);
+
+  const handleModeChange = (mode: ModeFilter) => {
+    userInteracted.current = true;
+    setModeFilter(mode);
+  };
+
+  const handleSiteClick = (site: Site) => {
+    userInteracted.current = true;
+    onStopSelect(site);
+  };
 
   if (!hasCoordinates && startingPosition.trim().length < 2) {
     return (
@@ -96,10 +112,18 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
   }
 
   const title = hasCoordinates
-    ? 'Live boards near your location'
+    ? modeFilter === 'all'
+      ? 'Live boards near your location'
+      : modeFilter === 'bus'
+        ? 'Nearby bus stops'
+        : 'Nearby train & metro stations'
     : startingPosition.trim()
       ? `Search results for ${startingPosition.trim()}`
       : 'Nearby stops';
+
+  const loadingText = hasCoordinates
+    ? modeFilter === 'train' ? 'Loading nearby trains...' : 'Loading nearby buses...'
+    : 'Searching...';
 
   return (
     <div style={styles.container}>
@@ -108,15 +132,30 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
           <div style={styles.label}>{hasCoordinates ? 'Nearby boards' : 'Nearby stops'}</div>
           <div style={styles.title}>{title}</div>
         </div>
-        {loading && <div style={styles.loader}>{hasCoordinates ? 'Loading nearby buses...' : 'Searching...'}</div>}
+        {loading && <div style={styles.loader}>{loadingText}</div>}
       </div>
+
+      {hasCoordinates && (
+        <div style={styles.modeBar}>
+          {(['all', 'bus', 'train'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => handleModeChange(mode)}
+              style={modeFilter === mode ? { ...styles.modeBtn, ...styles.modeBtnActive } : styles.modeBtn}
+            >
+              {mode === 'all' ? 'All' : mode === 'bus' ? 'Bus' : 'Train'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {showResults && results.length > 0 && (
         <div style={styles.list}>
           {results.map((site) => {
             const departures = site.departures;
-            const busPreview = departures?.buses?.slice(0, 2) ?? [];
-            const hasPreview = busPreview.length > 0;
+            const previewDeps = getPreviewDepartures(departures, hasCoordinates ? modeFilter : 'all');
+            const hasPreview = previewDeps.length > 0;
             const status = departures?.status === 'error' ? departures.error || 'Live departures unavailable' : null;
             const modeSummary = buildModeSummary(departures);
 
@@ -124,7 +163,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
               <button
                 key={site.SiteId}
                 type="button"
-                onClick={() => onStopSelect(site)}
+                onClick={() => handleSiteClick(site)}
                 style={
                   isMobile
                     ? {
@@ -151,9 +190,21 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                   {hasCoordinates && (
                     <div style={styles.previewList}>
                       {hasPreview ? (
-                        busPreview.map((departure, index) => (
+                        previewDeps.map((departure, index) => (
                           <div key={`${site.SiteId}-${departure.line_number}-${index}`} style={styles.previewItem}>
-                            <span style={styles.previewLine}>{departure.line_number}</span>
+                            <span style={{
+                              ...styles.previewLine,
+                              background: departure.transport_mode === 'metro'
+                                ? 'rgba(0, 120, 212, 0.2)'
+                                : departure.transport_mode === 'train'
+                                  ? 'rgba(107, 92, 255, 0.2)'
+                                  : 'rgba(104, 183, 255, 0.16)',
+                              color: departure.transport_mode === 'metro'
+                                ? '#7fc8ff'
+                                : departure.transport_mode === 'train'
+                                  ? '#c7b9ff'
+                                  : '#c7e6ff',
+                            }}>{departure.line_number}</span>
                             <span style={styles.previewDestination}>{departure.destination}</span>
                             <span style={styles.previewTime}>{departure.display_time}</span>
                           </div>
@@ -161,7 +212,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                       ) : status ? (
                         <div style={styles.previewFallback}>{status}</div>
                       ) : (
-                        <div style={styles.previewFallback}>No live bus departures right now.</div>
+                        <div style={styles.previewFallback}>{emptyText(modeFilter, hasCoordinates)}</div>
                       )}
                     </div>
                   )}
@@ -180,7 +231,12 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                 <div style={isMobile ? styles.cardMetaStack : styles.cardMetaRow}>
                   {hasCoordinates && departures && (
                     <span style={styles.liveCount}>
-                      {(departures.buses?.length ?? 0)} bus{(departures.buses?.length ?? 0) === 1 ? '' : 'es'}
+                      {modeFilter === 'all'
+                        ? `${(departures.buses?.length ?? 0) + (departures.metros?.length ?? 0) + (departures.trains?.length ?? 0)} departures`
+                        : modeFilter === 'bus'
+                          ? `${departures.buses?.length ?? 0} bus${(departures.buses?.length ?? 0) === 1 ? '' : 'es'}`
+                          : `${(departures.metros?.length ?? 0) + (departures.trains?.length ?? 0)} departures`
+                      }
                     </span>
                   )}
                   <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>Open board</span>
@@ -196,7 +252,9 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
           <div style={styles.emptyTitle}>{hasCoordinates ? 'No nearby stops found' : 'No stops found'}</div>
           <div style={styles.emptyText}>
             {hasCoordinates
-              ? 'Try another location, or switch back to manual search.'
+              ? modeFilter === 'train'
+                ? 'No train or metro stations nearby. Try switching to Bus or All view.'
+                : 'Try another location, or switch back to manual search.'
               : 'Try another stop name, station, or area.'}
           </div>
         </div>
@@ -239,6 +297,25 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--brand)',
     fontSize: '0.88rem',
     fontWeight: 700,
+  },
+  modeBar: {
+    display: 'flex',
+    gap: '8px',
+  },
+  modeBtn: {
+    padding: '6px 12px',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    color: 'var(--muted)',
+    border: '1px solid var(--border)',
+    fontSize: '0.82rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  modeBtnActive: {
+    background: 'rgba(104, 183, 255, 0.14)',
+    color: 'var(--text)',
+    borderColor: 'rgba(104, 183, 255, 0.35)',
   },
   list: {
     display: 'grid',
@@ -305,8 +382,6 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: '30px',
     padding: '4px 8px',
     borderRadius: '999px',
-    background: 'rgba(104, 183, 255, 0.16)',
-    color: '#c7e6ff',
     fontSize: '0.78rem',
     fontWeight: 800,
   },
@@ -424,6 +499,57 @@ async function fetchNearbyStopBoards(
   }
 
   return data.ResponseData || [];
+}
+
+async function fetchNearbyTrainBoards(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined
+): Promise<NearbyStopBoard[]> {
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+    return [];
+  }
+
+  const response = await fetch(
+    `/api/nearby/train-boards?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&limit=3&source=free`
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.detail || 'Nearby train station request failed');
+  }
+
+  return data.ResponseData || [];
+}
+
+function getPreviewDepartures(
+  departures: NearbyStopBoard['departures'],
+  mode: ModeFilter
+) {
+  if (!departures) return [];
+
+  if (mode === 'all') {
+    return [
+      ...(departures.buses?.slice(0, 1) ?? []),
+      ...(departures.metros?.slice(0, 1) ?? []),
+      ...(departures.trains?.slice(0, 1) ?? []),
+    ].filter(Boolean);
+  }
+
+  if (mode === 'bus') {
+    return (departures.buses?.slice(0, 2) ?? []);
+  }
+
+  return [
+    ...(departures.metros?.slice(0, 1) ?? []),
+    ...(departures.trains?.slice(0, 1) ?? []),
+  ].filter(Boolean);
+}
+
+function emptyText(mode: ModeFilter, hasCoordinates: boolean) {
+  if (!hasCoordinates) return 'No live departures right now.';
+  if (mode === 'bus') return 'No live bus departures right now.';
+  if (mode === 'train') return 'No live train or metro departures right now.';
+  return 'No live departures right now.';
 }
 
 function buildModeSummary(departures?: NearbyStopBoard['departures']) {
