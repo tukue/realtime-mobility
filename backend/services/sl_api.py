@@ -242,6 +242,46 @@ async def get_nearby_free_boards(
     return list(await asyncio.gather(*(_attach_departures(site) for site in nearby_sites)))
 
 
+async def get_nearby_free_train_boards(
+    latitude: float,
+    longitude: float,
+    *,
+    limit: int = 3,
+    client: Optional[httpx.AsyncClient] = None,
+) -> list[dict[str, Any]]:
+    """Fetch nearby sites and filter to only those with train/metro departures."""
+    scout_count = max(limit * 5, 15)
+    nearby_sites = await get_nearby_free_sites(latitude, longitude, limit=scout_count, client=client)
+
+    async def _attach_and_filter(site: dict[str, Any]) -> dict[str, Any] | None:
+        site_id_raw = site.get("SiteId", "")
+        try:
+            site_id = int(site_id_raw)
+        except (TypeError, ValueError):
+            return None
+
+        try:
+            raw_departures = await fetch_realtime_departures_free(site_id, client=client)
+            departures = normalize_free_departure_payload(raw_departures, site_id)
+            departures["site_name"] = site.get("Name", departures.get("site_name", ""))
+        except SLApiError:
+            return None
+
+        has_train = len(departures.get("trains", [])) > 0
+        has_metro = len(departures.get("metros", [])) > 0
+        if not has_train and not has_metro:
+            return None
+
+        return {**site, "departures": departures}
+
+    if not nearby_sites:
+        return []
+
+    results = await asyncio.gather(*(_attach_and_filter(site) for site in nearby_sites))
+    filtered = [r for r in results if r is not None]
+    return filtered[: max(limit, 0)]
+
+
 async def fetch_realtime_departures(
     site_id: int,
     *,
@@ -388,23 +428,37 @@ def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[
     if departures is None:
         departures = []
 
-    buses = []
+    buses: list[dict[str, Any]] = []
+    metros: list[dict[str, Any]] = []
+    trains: list[dict[str, Any]] = []
+    trams: list[dict[str, Any]] = []
+    ships: list[dict[str, Any]] = []
+
     for item in departures:
         line = item.get("line") or {}
         stop_deviations = item.get("deviations") or []
-        buses.append(
-            {
-                "line_number": str(line.get("designation") or line.get("id") or ""),
-                "destination": item.get("destination") or "",
-                "display_time": item.get("display") or "",
-                "expected_datetime": item.get("expected") or "",
-                "journey_direction": item.get("direction_code") or 0,
-                "group_of_line": line.get("group_of_lines") or "",
-                "transport_mode": str(line.get("transport_mode") or "BUS").lower(),
-                "deviations": stop_deviations if isinstance(stop_deviations, list) else [stop_deviations],
-                "has_deviations": bool(stop_deviations),
-            }
-        )
+        mode = str(line.get("transport_mode") or "BUS").lower()
+        entry = {
+            "line_number": str(line.get("designation") or line.get("id") or ""),
+            "destination": item.get("destination") or "",
+            "display_time": item.get("display") or "",
+            "expected_datetime": item.get("expected") or "",
+            "journey_direction": item.get("direction_code") or 0,
+            "group_of_line": line.get("group_of_lines") or "",
+            "transport_mode": mode,
+            "deviations": stop_deviations if isinstance(stop_deviations, list) else [stop_deviations],
+            "has_deviations": bool(stop_deviations),
+        }
+        if mode == "metro":
+            metros.append(entry)
+        elif mode == "train":
+            trains.append(entry)
+        elif mode == "tram":
+            trams.append(entry)
+        elif mode == "ship":
+            ships.append(entry)
+        else:
+            buses.append(entry)
 
     stop_deviations = raw.get("stop_deviations") if isinstance(raw, dict) else []
     if stop_deviations is None:
@@ -415,9 +469,9 @@ def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[
         "site_name": raw.get("site_name", "") if isinstance(raw, dict) else "",
         "status": "ok",
         "buses": buses,
-        "metros": [],
-        "trains": [],
-        "trams": [],
-        "ships": [],
+        "metros": metros,
+        "trains": trains,
+        "trams": trams,
+        "ships": ships,
         "stop_deviations": stop_deviations,
     }
