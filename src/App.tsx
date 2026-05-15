@@ -43,6 +43,8 @@ function App() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const backendPill =
+    backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger;
 
   useEffect(() => {
     setRecentSites(loadRecentSites());
@@ -155,19 +157,17 @@ function App() {
 
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
-          <div style={styles.kicker}>Stockholm travel planner</div>
-          <h1 style={styles.title}>Find your stop, then check the nearby buses</h1>
+          <div style={styles.kicker}>Stockholm transit checker</div>
+          <h1 style={styles.title}>See the next departures without the clutter.</h1>
           <p style={styles.subtitle}>
-            Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
+            Search a stop or station, reopen your recent boards, and keep the live view focused on the modes that matter right now.
           </p>
 
           <div style={styles.pills}>
-            <span style={styles.pill}>All transport modes</span>
-            <span style={styles.pill}>30-second refresh</span>
-            <span style={styles.pillAccent}>Recent stops saved locally</span>
-            <span style={backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger}>
-              Backend {backendStatus}
-            </span>
+            <span style={styles.pill}>Fast stop search</span>
+            <span style={styles.pill}>Auto-refresh live board</span>
+            <span style={styles.pillAccent}>Recent stops stay local</span>
+            <span style={backendPill}>Backend {backendStatus}</span>
           </div>
         </header>
 
@@ -181,11 +181,13 @@ function App() {
           <aside style={styles.sidebar}>
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Find a stop</div>
+              <div style={styles.cardLead}>Search a stop, station, or area and jump straight to live departures.</div>
               <SearchBar onSiteSelect={handleSiteSelect} />
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Nearby buses</div>
+              <div style={styles.cardLead}>Use a typed starting point or your location to rank the closest live boards.</div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
                 Type a stop, station, or area
               </label>
@@ -224,6 +226,7 @@ function App() {
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Recent stops</div>
+              <div style={styles.cardLead}>Open your last used stop in one tap. The app keeps only a small local list.</div>
               {recentSites.length > 0 ? (
                 <div style={styles.stack}>
                   {recentSites.map((site) => (
@@ -247,11 +250,13 @@ function App() {
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Saved stops</div>
+              <div style={styles.cardLead}>Cloud favorites are optional. The app still works if Supabase is not configured.</div>
               <FavoritesList onSiteSelect={handleSiteSelect} />
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>How it works</div>
+              <div style={styles.cardLead}>A short path from search to live departures, with a clean fallback when data is unavailable.</div>
               <ol style={styles.steps}>
                 <li>Search for a stop or enter a starting position.</li>
                 <li>Use nearby buses to jump to the closest live stop boards.</li>
@@ -266,12 +271,12 @@ function App() {
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live buses.</h2>
+                <h2 style={styles.emptyTitle}>Pick a stop to reveal the live board.</h2>
                 <p style={styles.emptyText}>
-                  The board shows live buses, metro, trains, trams, and ships once you choose a stop.
+                  The board groups buses, metro, trains, trams, and ships into a compact live view with quick refresh controls.
                 </p>
                 <div style={styles.emptyHint}>
-                  Use nearby buses to travel.
+                  Try a central stop like Skanstull, Odenplan, or Stureplan, or use the nearby panel to jump in faster.
                 </div>
               </div>
             )}
@@ -317,6 +322,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   header: {
     padding: '28px 0 26px',
+    maxWidth: '920px',
   },
   kicker: {
     display: 'inline-flex',
@@ -409,8 +415,8 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     padding: '18px',
     borderRadius: '24px',
-    background: 'var(--panel)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, rgba(11, 22, 39, 0.94) 0%, rgba(8, 18, 32, 0.88) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     boxShadow: '0 24px 70px rgba(0, 0, 0, 0.25)',
     backdropFilter: 'blur(18px)',
   },
@@ -421,6 +427,12 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase',
     color: 'var(--muted)',
     marginBottom: '12px',
+  },
+  cardLead: {
+    marginBottom: '14px',
+    color: 'var(--muted)',
+    fontSize: '0.92rem',
+    lineHeight: 1.5,
   },
   inlineLabel: {
     display: 'block',
@@ -538,8 +550,8 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '520px',
     padding: '28px',
     borderRadius: '28px',
-    background: 'linear-gradient(180deg, rgba(14, 27, 48, 0.94) 0%, rgba(8, 15, 27, 0.96) 100%)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, rgba(12, 24, 42, 0.96) 0%, rgba(7, 14, 25, 0.98) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     boxShadow: '0 30px 90px rgba(0, 0, 0, 0.28)',
     display: 'grid',
     alignContent: 'center',
