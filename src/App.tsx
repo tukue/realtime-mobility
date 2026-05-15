@@ -159,7 +159,7 @@ function App() {
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
-          <h1 style={styles.title}>Find your stop, then check nearby departures</h1>
+          <h1 style={styles.title}>Find your stop, then check nearby stations</h1>
           <p style={styles.subtitle}>
             Search a stop or station, save the ones you use often, or use nearby stops to jump straight into the closest live boards.
           </p>
@@ -267,7 +267,7 @@ function App() {
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live departures.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live vehicles.</h2>
                 <p style={styles.emptyText}>
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
