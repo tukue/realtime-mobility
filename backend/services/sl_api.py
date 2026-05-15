@@ -267,9 +267,8 @@ async def get_nearby_free_train_boards(
         except SLApiError:
             return None
 
-        all_deps = departures.get("buses", [])
-        has_train = any(d.get("transport_mode") == "train" for d in all_deps)
-        has_metro = any(d.get("transport_mode") == "metro" for d in all_deps)
+        has_train = len(departures.get("trains", [])) > 0
+        has_metro = len(departures.get("metros", [])) > 0
         if not has_train and not has_metro:
             return None
 
@@ -429,23 +428,37 @@ def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[
     if departures is None:
         departures = []
 
-    buses = []
+    buses: list[dict[str, Any]] = []
+    metros: list[dict[str, Any]] = []
+    trains: list[dict[str, Any]] = []
+    trams: list[dict[str, Any]] = []
+    ships: list[dict[str, Any]] = []
+
     for item in departures:
         line = item.get("line") or {}
         stop_deviations = item.get("deviations") or []
-        buses.append(
-            {
-                "line_number": str(line.get("designation") or line.get("id") or ""),
-                "destination": item.get("destination") or "",
-                "display_time": item.get("display") or "",
-                "expected_datetime": item.get("expected") or "",
-                "journey_direction": item.get("direction_code") or 0,
-                "group_of_line": line.get("group_of_lines") or "",
-                "transport_mode": str(line.get("transport_mode") or "BUS").lower(),
-                "deviations": stop_deviations if isinstance(stop_deviations, list) else [stop_deviations],
-                "has_deviations": bool(stop_deviations),
-            }
-        )
+        mode = str(line.get("transport_mode") or "BUS").lower()
+        entry = {
+            "line_number": str(line.get("designation") or line.get("id") or ""),
+            "destination": item.get("destination") or "",
+            "display_time": item.get("display") or "",
+            "expected_datetime": item.get("expected") or "",
+            "journey_direction": item.get("direction_code") or 0,
+            "group_of_line": line.get("group_of_lines") or "",
+            "transport_mode": mode,
+            "deviations": stop_deviations if isinstance(stop_deviations, list) else [stop_deviations],
+            "has_deviations": bool(stop_deviations),
+        }
+        if mode == "metro":
+            metros.append(entry)
+        elif mode == "train":
+            trains.append(entry)
+        elif mode == "tram":
+            trams.append(entry)
+        elif mode == "ship":
+            ships.append(entry)
+        else:
+            buses.append(entry)
 
     stop_deviations = raw.get("stop_deviations") if isinstance(raw, dict) else []
     if stop_deviations is None:
@@ -456,9 +469,9 @@ def normalize_free_departure_payload(raw: dict[str, Any], site_id: int) -> dict[
         "site_name": raw.get("site_name", "") if isinstance(raw, dict) else "",
         "status": "ok",
         "buses": buses,
-        "metros": [],
-        "trains": [],
-        "trams": [],
-        "ships": [],
+        "metros": metros,
+        "trains": trains,
+        "trams": trams,
+        "ships": ships,
         "stop_deviations": stop_deviations,
     }

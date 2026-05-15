@@ -96,9 +96,8 @@ function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainS
           </div>
 
           {results.map((site) => {
-            const allDeps = (site.departures?.buses ?? []) as Array<{ transport_mode?: string; line_number: string; destination: string; display_time: string }>;
-            const trainDeps = allDeps.filter((d) => d.transport_mode === 'train');
-            const metroDeps = allDeps.filter((d) => d.transport_mode === 'metro');
+            const trainDeps = site.departures?.trains ?? [];
+            const metroDeps = site.departures?.metros ?? [];
             const filteredDeps = modeFilter === 'all'
               ? [...metroDeps.slice(0, 1), ...trainDeps.slice(0, 1)]
               : modeFilter === 'metro'
