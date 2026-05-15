@@ -13,20 +13,20 @@ from services.sl_api import (
 router = APIRouter()
 
 @router.get("/search")
-async def search_site(query: str, source: str = "key", transport_mode: str | None = None):
+async def search_site(query: str, source: str = "key"):
     """Search for stops/stations by name"""
     try:
         if source == "free":
-            return {"ResponseData": normalize_free_sites(await search_stops_free(query, transport_mode=transport_mode))}
+            return {"ResponseData": normalize_free_sites(await search_stops_free(query))}
         return await search_stops(query)
     except SLApiError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching stops: {str(e)}")
 
-@router.get("/departures/{site_id}")
+@router.get("/liveboard/{site_id}")
 async def get_departures(site_id: int, time_window: int = 60, source: str = "key"):
-    """Get real-time departures for a specific stop/station"""
+    """Get real-time live board data for a specific stop/station"""
     try:
         if source == "free":
             raw_departures = await fetch_realtime_departures_free(site_id)

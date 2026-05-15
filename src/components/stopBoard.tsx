@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Site, DepartureData, Departure } from '../types';
-import DepartureCard from './DepartureCard';
+import LiveBoardCard from './LiveBoardCard';
+import DisruptionBanner from './DisruptionBanner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface StopBoardProps {
   site: Site;
   startingLocation?: string;
-  initialMode?: ModeKey;
 }
 
 type ModeKey = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
@@ -19,7 +19,7 @@ const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string;
   ships: { label: 'Ship', color: '#0d8f8f', key: 'ships' },
 };
 
-function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardProps) {
+function StopBoard({ site, startingLocation }: StopBoardProps) {
   const isMobile = useMediaQuery('(max-width: 720px)');
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
 
   useEffect(() => {
     isMounted.current = true;
-    setActiveMode(initialMode);
+    setActiveMode('all');
     fetchDepartures(false);
 
     const interval = setInterval(() => {
@@ -44,7 +44,7 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
       isMounted.current = false;
       clearInterval(interval);
     };
-  }, [site, initialMode]);
+  }, [site]);
 
   const fetchDepartures = async (silent = false) => {
     const requestId = ++requestIdRef.current;
@@ -58,7 +58,7 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
     setError(null);
 
     try {
-      const response = await fetch(`/api/departures/format/${site.SiteId}?source=free`);
+      const response = await fetch(`/api/liveboard/format/${site.SiteId}?source=free`);
       const data = await response.json();
 
       if (!isMounted.current || requestId !== requestIdRef.current) return;
@@ -111,6 +111,9 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
       : modeSections.filter((section) => section.mode === activeMode);
 
   const totalDepartures = modeSections.reduce((sum, section) => sum + section.count, 0);
+  const lastUpdatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : 'waiting for first refresh';
 
   const renderDepartures = (items: Departure[], color: string, label: string) => {
     if (!items || items.length === 0) return null;
@@ -120,15 +123,15 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
         <div style={styles.sectionHeader}>
           <div>
             <h3 style={styles.categoryTitle}>{label} departures</h3>
-            <p style={styles.sectionSubtitle}>Next {label.toLowerCase()} departures from this stop</p>
+            <p style={styles.sectionSubtitle}>The next live updates for this mode</p>
           </div>
 
-          <span style={{ ...styles.routeBadge, backgroundColor: color }}>Live</span>
+          <span style={{ ...styles.routeBadge, backgroundColor: color }}>{items.length} live</span>
         </div>
 
         <div style={styles.departureGrid}>
-          {items.slice(0, 6).map((departure, index) => (
-            <DepartureCard key={`${departure.line_number}-${departure.destination}-${index}`} departure={departure} color={color} />
+          {items.slice(0, 6).map((entry, index) => (
+            <LiveBoardCard key={`${entry.line_number}-${entry.destination}-${index}`} entry={entry} color={color} />
           ))}
         </div>
       </section>
@@ -172,11 +175,7 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
             <span style={styles.metaChip}>{refreshing ? 'Refreshing now' : 'Auto refresh on'}</span>
-            <span style={styles.metaChip}>
-              {lastUpdated
-                ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : 'Waiting for first update'}
-            </span>
+            <span style={styles.metaChip}>{`Updated ${lastUpdatedLabel}`}</span>
             <span style={styles.metaChip}>{totalDepartures} live departures</span>
           </div>
         </div>
@@ -186,8 +185,9 @@ function StopBoard({ site, startingLocation, initialMode = 'all' }: StopBoardPro
         </button>
       </div>
 
-      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>
-        <button
+      <DisruptionBanner siteId={site.SiteId} />
+
+      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>        <button
           type="button"
           onClick={() => setActiveMode('all')}
           style={activeMode === 'all' ? { ...styles.modeButton, ...styles.modeButtonActive } : styles.modeButton}
@@ -289,7 +289,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 10px',
     borderRadius: '999px',
     background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid var(--border)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     color: 'var(--muted)',
     fontSize: '0.82rem',
     fontWeight: 700,

@@ -3,6 +3,7 @@ import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
+import NearbyTrainStations from './components/NearbyTrainStations';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { Site } from './types';
 
@@ -14,9 +15,6 @@ type GeoLocation = {
   latitude: number;
   longitude: number;
 };
-
-type BoardMode = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
-type NearbyMode = 'buses' | 'trains';
 
 function loadRecentSites(): Site[] {
   try {
@@ -40,14 +38,14 @@ function loadRecentSites(): Site[] {
 function App() {
   const isMobile = useMediaQuery('(max-width: 900px)');
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
-  const [selectedMode, setSelectedMode] = useState<BoardMode>('all');
-  const [nearbyMode, setNearbyMode] = useState<NearbyMode>('buses');
   const [startingLocation, setStartingLocation] = useState('');
   const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const backendPill =
+    backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger;
 
   useEffect(() => {
     setRecentSites(loadRecentSites());
@@ -101,9 +99,8 @@ function App() {
     };
   }, []);
 
-  const handleSiteSelect = (site: Site, preferredMode: BoardMode = 'all') => {
+  const handleSiteSelect = (site: Site) => {
     setSelectedSite(site);
-    setSelectedMode(preferredMode);
     setRecentSites((current) => {
       const next = [site, ...current.filter((item) => item.SiteId !== site.SiteId)].slice(0, MAX_RECENTS);
       try {
@@ -162,7 +159,7 @@ function App() {
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
-          <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
+          <h1 style={styles.title}>Find your stop, then check the nearby buses</h1>
           <p style={styles.subtitle}>
             Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
           </p>
@@ -171,9 +168,7 @@ function App() {
             <span style={styles.pill}>All transport modes</span>
             <span style={styles.pill}>30-second refresh</span>
             <span style={styles.pillAccent}>Recent stops saved locally</span>
-            <span style={backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger}>
-              Backend {backendStatus}
-            </span>
+            <span style={backendPill}>Backend {backendStatus}</span>
           </div>
         </header>
 
@@ -191,67 +186,47 @@ function App() {
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
-              <div style={styles.cardLabel}>Nearby transport</div>
-              <div style={styles.transportModeBar}>
-                <button
-                  type="button"
-                  onClick={() => setNearbyMode('buses')}
-                  style={nearbyMode === 'buses' ? { ...styles.transportModeButton, ...styles.transportModeButtonActive } : styles.transportModeButton}
-                >
-                  Bus
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNearbyMode('trains');
-                    setGeoLocation(null);
-                    setGeoError(null);
-                  }}
-                  style={nearbyMode === 'trains' ? { ...styles.transportModeButton, ...styles.transportModeButtonActive } : styles.transportModeButton}
-                >
-                  Train
-                </button>
-              </div>
+              <div style={styles.cardLabel}>Nearby buses</div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
-                {nearbyMode === 'trains' ? 'Enter your location to find train stations' : 'Type a stop, station, or area'}
+                Type a stop, station, or area
               </label>
               <input
                 id="starting-location"
                 type="text"
                 value={startingLocation}
                 onChange={(e) => setStartingLocation(e.target.value)}
-                placeholder={nearbyMode === 'trains' ? 'Area, stop, or station near the train' : 'Stop, station, or area'}
+                placeholder="Stop, station, or area"
                 style={styles.startInput}
               />
               <div style={styles.helperText}>
-                {nearbyMode === 'trains'
-                  ? 'Train lookup uses typed locations and station search.'
-                  : 'Use a typed starting point or tap the location button to rank the closest stops automatically.'}
+                Use a typed starting point or tap <span style={styles.helperStrong}>Use my location</span> to rank the closest stops automatically.
               </div>
-              {nearbyMode === 'buses' && (
-                <>
-                  <div style={styles.locationActions}>
-                    <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
-                      {geoLoading ? 'Locating...' : geoLocation ? 'Refresh nearby buses' : 'Find nearby buses'}
-                    </button>
-                    {geoLocation && (
-                      <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
-                        Use manual input
-                      </button>
-                    )}
-                  </div>
-                  {geoLocation && <div style={styles.locationStatus}>Using your live location to rank the nearest live bus stops.</div>}
-                  {geoError && <div style={styles.locationError}>{geoError}</div>}
-                </>
-              )}
+              <div style={styles.locationActions}>
+                <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
+                  {geoLoading ? 'Locating...' : geoLocation ? 'Use my location again' : 'Use my location'}
+                </button>
+                {geoLocation && (
+                  <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
+                    Use manual input
+                  </button>
+                )}
+              </div>
+              {geoLocation && <div style={styles.locationStatus}>Using your live location to rank the nearest live bus stops.</div>}
+              {geoError && <div style={styles.locationError}>{geoError}</div>}
               <div style={styles.nearbyWrap}>
                 <NearbyStops
                   startingPosition={startingLocation}
-                  mode={nearbyMode}
                   latitude={geoLocation?.latitude ?? null}
                   longitude={geoLocation?.longitude ?? null}
                   onStopSelect={handleSiteSelect}
                 />
+                {geoLocation && (
+                  <NearbyTrainStations
+                    latitude={geoLocation?.latitude ?? null}
+                    longitude={geoLocation?.longitude ?? null}
+                    onStopSelect={handleSiteSelect}
+                  />
+                )}
               </div>
             </div>
 
@@ -295,7 +270,7 @@ function App() {
 
           <section style={styles.boardArea}>
             {selectedSite ? (
-              <StopBoard site={selectedSite} startingLocation={startingLocation} initialMode={selectedMode} />
+              <StopBoard site={selectedSite} startingLocation={startingLocation} />
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
@@ -304,7 +279,7 @@ function App() {
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Try a central stop like Skanstull, Odenplan, or Stureplan, or use nearby buses to jump in faster.
+                  Use nearby buses to travel.
                 </div>
               </div>
             )}
@@ -341,26 +316,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'radial-gradient(circle, rgba(247, 185, 85, 0.18) 0%, rgba(247, 185, 85, 0) 68%)',
     pointerEvents: 'none',
   },
-  transportModeBar: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '14px',
-  },
-  transportModeButton: {
-    padding: '10px 14px',
-    borderRadius: '999px',
-    border: '1px solid var(--border)',
-    background: 'rgba(255, 255, 255, 0.05)',
-    color: 'var(--muted)',
-    fontSize: '0.86rem',
-    fontWeight: 800,
-    cursor: 'pointer',
-  },
-  transportModeButtonActive: {
-    background: 'rgba(104, 183, 255, 0.14)',
-    color: 'var(--text)',
-    borderColor: 'rgba(104, 183, 255, 0.35)',
-  },
   container: {
     position: 'relative',
     zIndex: 1,
@@ -370,6 +325,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   header: {
     padding: '28px 0 26px',
+    maxWidth: '920px',
   },
   kicker: {
     display: 'inline-flex',
@@ -462,8 +418,8 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     padding: '18px',
     borderRadius: '24px',
-    background: 'var(--panel)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, rgba(11, 22, 39, 0.94) 0%, rgba(8, 18, 32, 0.88) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     boxShadow: '0 24px 70px rgba(0, 0, 0, 0.25)',
     backdropFilter: 'blur(18px)',
   },
@@ -474,6 +430,12 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase',
     color: 'var(--muted)',
     marginBottom: '12px',
+  },
+  cardLead: {
+    marginBottom: '14px',
+    color: 'var(--muted)',
+    fontSize: '0.92rem',
+    lineHeight: 1.5,
   },
   inlineLabel: {
     display: 'block',
@@ -498,6 +460,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.88rem',
     lineHeight: 1.5,
+  },
+  helperStrong: {
+    color: 'var(--text)',
+    fontWeight: 800,
   },
   locationActions: {
     display: 'flex',
@@ -587,8 +553,8 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '520px',
     padding: '28px',
     borderRadius: '28px',
-    background: 'linear-gradient(180deg, rgba(14, 27, 48, 0.94) 0%, rgba(8, 15, 27, 0.96) 100%)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, rgba(12, 24, 42, 0.96) 0%, rgba(7, 14, 25, 0.98) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     boxShadow: '0 30px 90px rgba(0, 0, 0, 0.28)',
     display: 'grid',
     alignContent: 'center',

@@ -3,22 +3,14 @@ import { NearbyStopBoard, Site } from '../types';
 import { searchStops } from '../lib/stopSearch';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
-type NearbyMode = 'buses' | 'trains';
-
 interface NearbyStopsProps {
   startingPosition: string;
-  mode: NearbyMode;
   latitude?: number | null;
   longitude?: number | null;
-  onStopSelect: (site: Site, preferredMode?: NearbyMode) => void;
+  onStopSelect: (site: Site) => void;
 }
 
-const MODE_COPY: Record<NearbyMode, { label: string; cta: string; emptyTitle: string }> = {
-  buses: { label: 'Nearby buses', cta: 'Open board', emptyTitle: 'No nearby stops found' },
-  trains: { label: 'Nearby train stations', cta: 'View trains', emptyTitle: 'No nearby train stations found' },
-};
-
-function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect }: NearbyStopsProps) {
+function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: NearbyStopsProps) {
   const isMobile = useMediaQuery('(max-width: 720px)');
   const [results, setResults] = useState<NearbyStopBoard[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +18,7 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
   const [showResults, setShowResults] = useState(false);
   const autoSelectedSiteId = useRef<string | null>(null);
   const onStopSelectRef = useRef(onStopSelect);
-  const hasCoordinates = mode === 'buses' && typeof latitude === 'number' && typeof longitude === 'number';
+  const hasCoordinates = typeof latitude === 'number' && typeof longitude === 'number';
 
   useEffect(() => {
     onStopSelectRef.current = onStopSelect;
@@ -54,7 +46,7 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
       try {
         const sites = hasCoordinates
           ? await fetchNearbyStopBoards(latitude, longitude)
-          : await searchStops(query, mode === 'trains' ? 'train' : 'bus');
+          : await searchStops(query);
 
         if (!isMounted) {
           return;
@@ -67,7 +59,7 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
           const closestSite = sites[0];
           if (closestSite.SiteId !== autoSelectedSiteId.current) {
             autoSelectedSiteId.current = closestSite.SiteId;
-            onStopSelectRef.current(closestSite, 'buses');
+            onStopSelectRef.current(closestSite);
           }
         }
       } catch (fetchError) {
@@ -90,22 +82,21 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
       isMounted = false;
       window.clearTimeout(timeoutId);
     };
-  }, [hasCoordinates, latitude, longitude, mode, startingPosition]);
+  }, [hasCoordinates, latitude, longitude, startingPosition]);
 
   if (!hasCoordinates && startingPosition.trim().length < 2) {
     return (
       <div style={styles.empty}>
         <div style={styles.emptyTitle}>Enter a starting position</div>
         <div style={styles.emptyText}>
-          Type a stop, station, or area to find {MODE_COPY[mode].label.toLowerCase()}, or enable location to rank nearby buses automatically.
+          Type a stop, station, or area to find nearby stops, or enable location to rank them automatically.
         </div>
       </div>
     );
   }
 
-  const copy = MODE_COPY[mode];
   const title = hasCoordinates
-    ? 'Live buses near your location'
+    ? 'Live boards near your location'
     : startingPosition.trim()
       ? `Search results for ${startingPosition.trim()}`
       : 'Nearby stops';
@@ -114,7 +105,7 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
     <div style={styles.container}>
       <div style={isMobile ? { ...styles.header, flexDirection: 'column', alignItems: 'flex-start' } : styles.header}>
         <div>
-          <div style={styles.label}>{hasCoordinates ? 'Nearby buses' : copy.label}</div>
+          <div style={styles.label}>{hasCoordinates ? 'Nearby boards' : 'Nearby stops'}</div>
           <div style={styles.title}>{title}</div>
         </div>
         {loading && <div style={styles.loader}>{hasCoordinates ? 'Loading nearby buses...' : 'Searching...'}</div>}
@@ -127,12 +118,13 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
             const busPreview = departures?.buses?.slice(0, 2) ?? [];
             const hasPreview = busPreview.length > 0;
             const status = departures?.status === 'error' ? departures.error || 'Live departures unavailable' : null;
+            const modeSummary = buildModeSummary(departures);
 
             return (
               <button
                 key={site.SiteId}
                 type="button"
-                onClick={() => onStopSelect(site, mode)}
+                onClick={() => onStopSelect(site)}
                 style={
                   isMobile
                     ? {
@@ -173,6 +165,16 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
                       )}
                     </div>
                   )}
+
+                  {modeSummary.length > 0 && (
+                    <div style={styles.modeSummary}>
+                      {modeSummary.map((item) => (
+                        <span key={`${site.SiteId}-${item.label}`} style={styles.modeChip}>
+                          {item.label} {item.count}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div style={isMobile ? styles.cardMetaStack : styles.cardMetaRow}>
@@ -181,7 +183,7 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
                       {(departures.buses?.length ?? 0)} bus{(departures.buses?.length ?? 0) === 1 ? '' : 'es'}
                     </span>
                   )}
-                  <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>{copy.cta}</span>
+                  <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>Open board</span>
                 </div>
               </button>
             );
@@ -191,7 +193,7 @@ function NearbyStops({ startingPosition, mode, latitude, longitude, onStopSelect
 
       {showResults && !loading && results.length === 0 && !error && (
         <div style={styles.empty}>
-          <div style={styles.emptyTitle}>{hasCoordinates ? 'No nearby stops found' : copy.emptyTitle}</div>
+          <div style={styles.emptyTitle}>{hasCoordinates ? 'No nearby stops found' : 'No stops found'}</div>
           <div style={styles.emptyText}>
             {hasCoordinates
               ? 'Try another location, or switch back to manual search.'
@@ -326,6 +328,21 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.88rem',
   },
+  modeSummary: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '2px',
+  },
+  modeChip: {
+    padding: '5px 9px',
+    borderRadius: '999px',
+    background: 'rgba(104, 183, 255, 0.12)',
+    color: '#c7e6ff',
+    border: '1px solid rgba(104, 183, 255, 0.18)',
+    fontSize: '0.74rem',
+    fontWeight: 800,
+  },
   cardMetaRow: {
     display: 'flex',
     alignItems: 'center',
@@ -407,4 +424,20 @@ async function fetchNearbyStopBoards(
   }
 
   return data.ResponseData || [];
+}
+
+function buildModeSummary(departures?: NearbyStopBoard['departures']) {
+  if (!departures) {
+    return [];
+  }
+
+  const counts = [
+    { label: 'Bus', count: departures.buses?.length ?? 0 },
+    { label: 'Metro', count: departures.metros?.length ?? 0 },
+    { label: 'Train', count: departures.trains?.length ?? 0 },
+    { label: 'Tram', count: departures.trams?.length ?? 0 },
+    { label: 'Ship', count: departures.ships?.length ?? 0 },
+  ].filter((item) => item.count > 0);
+
+  return counts.slice(0, 4);
 }

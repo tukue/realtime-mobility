@@ -1,16 +1,7 @@
 import { Site } from '../types';
 
-export async function searchStops(query: string, transportMode?: 'bus' | 'train'): Promise<Site[]> {
-  const params = new URLSearchParams({
-    query,
-    source: 'free',
-  });
-
-  if (transportMode) {
-    params.set('transport_mode', transportMode);
-  }
-
-  const response = await fetch(`/api/realtime/search?${params.toString()}`);
+export async function searchStops(query: string): Promise<Site[]> {
+  const response = await fetch(`/api/realtime/search?query=${encodeURIComponent(query)}&source=free`);
   const data = await response.json();
 
   if (!response.ok) {

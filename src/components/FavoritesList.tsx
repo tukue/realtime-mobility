@@ -50,10 +50,11 @@ function FavoritesList({ onSiteSelect }: FavoritesListProps) {
   if (favorites.length === 0) {
     return (
       <div style={styles.empty}>
+        <div style={styles.emptyKicker}>{supabaseConfigured ? 'Cloud favorites' : 'Local-only mode'}</div>
         <div style={styles.emptyTitle}>No saved stops yet</div>
         <div style={styles.emptyText}>
           {supabaseConfigured
-            ? 'Tap the save action later to pin frequent stops here.'
+            ? 'Pin frequent stops here from the live board so they are always one tap away.'
             : 'Favorites storage is not configured in this deployment, but recent stops still work locally.'}
         </div>
       </div>
@@ -84,6 +85,19 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'grid',
     gap: '12px',
+  },
+  emptyKicker: {
+    display: 'inline-flex',
+    width: 'fit-content',
+    padding: '6px 10px',
+    borderRadius: '999px',
+    background: 'rgba(104, 183, 255, 0.12)',
+    color: '#c7e6ff',
+    border: '1px solid rgba(104, 183, 255, 0.18)',
+    fontSize: '0.72rem',
+    fontWeight: 800,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
   },
   title: {
     fontSize: '0.84rem',
