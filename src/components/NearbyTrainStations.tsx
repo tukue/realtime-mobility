@@ -14,6 +14,7 @@ function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoSelectedSiteId = useRef<string | null>(null);
+  const userInteracted = useRef(false);
   const onStopSelectRef = useRef(onStopSelect);
   const hasCoordinates = typeof latitude === 'number' && typeof longitude === 'number';
 
@@ -41,7 +42,7 @@ function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainS
         setResults(stations.slice(0, 3));
         setLoading(false);
 
-        if (stations.length > 0) {
+        if (stations.length > 0 && !userInteracted.current) {
           const closest = stations[0];
           if (closest.SiteId !== autoSelectedSiteId.current) {
             autoSelectedSiteId.current = closest.SiteId;
@@ -91,7 +92,7 @@ function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainS
               <button
                 key={site.SiteId}
                 type="button"
-                onClick={() => onStopSelect(site)}
+                onClick={() => { userInteracted.current = true; onStopSelect(site); }}
                 style={
                   isMobile
                     ? {
