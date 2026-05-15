@@ -3,6 +3,7 @@ import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
+import NearbyTrainStations from './components/NearbyTrainStations';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { Site } from './types';
 
@@ -219,6 +220,13 @@ function App() {
                   longitude={geoLocation?.longitude ?? null}
                   onStopSelect={handleSiteSelect}
                 />
+                {geoLocation && (
+                  <NearbyTrainStations
+                    latitude={geoLocation?.latitude ?? null}
+                    longitude={geoLocation?.longitude ?? null}
+                    onStopSelect={handleSiteSelect}
+                  />
+                )}
               </div>
             </div>
 
