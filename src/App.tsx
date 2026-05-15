@@ -157,16 +157,16 @@ function App() {
 
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
-          <div style={styles.kicker}>Stockholm transit checker</div>
-          <h1 style={styles.title}>See the next departures without the clutter.</h1>
+          <div style={styles.kicker}>Stockholm travel planner</div>
+          <h1 style={styles.title}>Find your stop, then check the nearby buses</h1>
           <p style={styles.subtitle}>
-            Search a stop or station, reopen your recent boards, and keep the live view focused on the modes that matter right now.
+            Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
           </p>
 
           <div style={styles.pills}>
-            <span style={styles.pill}>Fast stop search</span>
-            <span style={styles.pill}>Auto-refresh live board</span>
-            <span style={styles.pillAccent}>Recent stops stay local</span>
+            <span style={styles.pill}>All transport modes</span>
+            <span style={styles.pill}>30-second refresh</span>
+            <span style={styles.pillAccent}>Recent stops saved locally</span>
             <span style={backendPill}>Backend {backendStatus}</span>
           </div>
         </header>
@@ -181,13 +181,11 @@ function App() {
           <aside style={styles.sidebar}>
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Find a stop</div>
-              <div style={styles.cardLead}>Search a stop, station, or area and jump straight to live departures.</div>
               <SearchBar onSiteSelect={handleSiteSelect} />
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Nearby buses</div>
-              <div style={styles.cardLead}>Use a typed starting point or your location to rank the closest live boards.</div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
                 Type a stop, station, or area
               </label>
@@ -226,7 +224,6 @@ function App() {
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Recent stops</div>
-              <div style={styles.cardLead}>Open your last used stop in one tap. The app keeps only a small local list.</div>
               {recentSites.length > 0 ? (
                 <div style={styles.stack}>
                   {recentSites.map((site) => (
@@ -250,13 +247,11 @@ function App() {
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>Saved stops</div>
-              <div style={styles.cardLead}>Cloud favorites are optional. The app still works if Supabase is not configured.</div>
               <FavoritesList onSiteSelect={handleSiteSelect} />
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>How it works</div>
-              <div style={styles.cardLead}>A short path from search to live departures, with a clean fallback when data is unavailable.</div>
               <ol style={styles.steps}>
                 <li>Search for a stop or enter a starting position.</li>
                 <li>Use nearby buses to jump to the closest live stop boards.</li>
@@ -271,12 +266,12 @@ function App() {
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Pick a stop to reveal the live board.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live buses.</h2>
                 <p style={styles.emptyText}>
-                  The board groups buses, metro, trains, trams, and ships into a compact live view with quick refresh controls.
+                  The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Try a central stop like Skanstull, Odenplan, or Stureplan, or use the nearby panel to jump in faster.
+                  Use nearby buses to travel.
                 </div>
               </div>
             )}
