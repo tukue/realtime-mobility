@@ -8,11 +8,14 @@ interface NearbyTrainStationsProps {
   onStopSelect: (site: Site) => void;
 }
 
+type ModeFilter = 'all' | 'metro' | 'train';
+
 function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainStationsProps) {
   const isMobile = useMediaQuery('(max-width: 720px)');
   const [results, setResults] = useState<NearbyStopBoard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modeFilter, setModeFilter] = useState<ModeFilter>('all');
   const autoSelectedSiteId = useRef<string | null>(null);
   const userInteracted = useRef(false);
   const onStopSelectRef = useRef(onStopSelect);
@@ -79,14 +82,32 @@ function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainS
 
       {!loading && results.length > 0 && (
         <div style={styles.list}>
+          <div style={styles.modeBar}>
+            {(['all', 'metro', 'train'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => { userInteracted.current = true; setModeFilter(mode); }}
+                style={modeFilter === mode ? { ...styles.modeBtn, ...styles.modeBtnActive } : styles.modeBtn}
+              >
+                {mode === 'all' ? 'All' : mode === 'metro' ? 'Metro' : 'Train'}
+              </button>
+            ))}
+          </div>
+
           {results.map((site) => {
-            const departures = site.departures;
-            const trainPreview = [
-              ...(departures?.trains?.slice(0, 1) ?? []),
-              ...(departures?.metros?.slice(0, 1) ?? []),
-            ];
-            const hasPreview = trainPreview.length > 0;
-            const status = departures?.status === 'error' ? departures.error || 'Live departures unavailable' : null;
+            const allDeps = (site.departures?.buses ?? []) as Array<{ transport_mode?: string; line_number: string; destination: string; display_time: string }>;
+            const trainDeps = allDeps.filter((d) => d.transport_mode === 'train');
+            const metroDeps = allDeps.filter((d) => d.transport_mode === 'metro');
+            const filteredDeps = modeFilter === 'all'
+              ? [...metroDeps.slice(0, 1), ...trainDeps.slice(0, 1)]
+              : modeFilter === 'metro'
+                ? metroDeps.slice(0, 2)
+                : trainDeps.slice(0, 2);
+
+            const totalRelevant = metroDeps.length + trainDeps.length;
+            const hasError = site.departures?.status === 'error';
+            const errorMsg = site.departures?.error || 'Live departures unavailable';
 
             return (
               <button
@@ -116,9 +137,9 @@ function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainS
                     )}
                   </div>
 
-                  {hasPreview && (
+                  {filteredDeps.length > 0 && (
                     <div style={styles.previewList}>
-                      {trainPreview.map((departure, index) => (
+                      {filteredDeps.map((departure, index) => (
                         <div key={`${site.SiteId}-${departure.line_number}-${index}`} style={styles.previewItem}>
                           <span style={{
                             ...styles.previewLine,
@@ -136,19 +157,15 @@ function NearbyTrainStations({ latitude, longitude, onStopSelect }: NearbyTrainS
                     </div>
                   )}
 
-                  {!hasPreview && !loading && status && (
-                    <div style={styles.previewFallback}>{status}</div>
-                  )}
-
-                  {!hasPreview && !loading && !status && (
-                    <div style={styles.previewFallback}>No live train departures right now.</div>
+                  {filteredDeps.length === 0 && !loading && (
+                    <div style={styles.previewFallback}>
+                      {hasError ? errorMsg : `No ${modeFilter === 'all' ? '' : modeFilter + ' '}live departures right now.`}
+                    </div>
                   )}
                 </div>
 
                 <div style={styles.cardMeta}>
-                  <span style={styles.liveCount}>
-                    {(departures?.trains?.length ?? 0) + (departures?.metros?.length ?? 0)} departures
-                  </span>
+                  <span style={styles.liveCount}>{totalRelevant} departures</span>
                   <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>Open board</span>
                 </div>
               </button>
@@ -203,6 +220,25 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--brand)',
     fontSize: '0.88rem',
     fontWeight: 700,
+  },
+  modeBar: {
+    display: 'flex',
+    gap: '8px',
+  },
+  modeBtn: {
+    padding: '6px 12px',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    color: 'var(--muted)',
+    border: '1px solid var(--border)',
+    fontSize: '0.82rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  modeBtnActive: {
+    background: 'rgba(104, 183, 255, 0.14)',
+    color: 'var(--text)',
+    borderColor: 'rgba(104, 183, 255, 0.35)',
   },
   list: {
     display: 'grid',
