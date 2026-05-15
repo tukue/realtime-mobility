@@ -11,8 +11,8 @@ from services.sl_api import (
 router = APIRouter()
 
 @router.get("/format/{site_id}")
-async def get_formatted_departures(site_id: int, source: str = "key"):
-    """Get formatted departures from the realtime endpoint"""
+async def get_formatted_liveboard(site_id: int, source: str = "key"):
+    """Get formatted live board data from the realtime endpoint"""
     try:
         if source == "free":
             raw_departures = await fetch_realtime_departures_free(site_id)

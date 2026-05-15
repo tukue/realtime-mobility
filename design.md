@@ -23,7 +23,10 @@ User returns to the app and reopens a recently used stop or favorite without sea
 ### 2.3 Multi-modal overview
 User checks buses, metro, trains, trams, and ships from the same stop without switching apps.
 
-### 2.4 Deployment confidence
+### 2.4 Nearby buses
+User taps `Use my location` or types a starting point, then sees nearby stops ranked by distance with live bus previews.
+
+### 2.5 Deployment confidence
 User can tell whether the backend is reachable and whether live data is loading correctly.
 
 ## 3. Product Principles
@@ -70,7 +73,7 @@ Contains:
 ### 5.2 Left sidebar
 Contains:
 - Search input
-- Optional manual starting location field
+- Nearby buses card with manual starting point input and a `Use my location` button
 - Recent stops
 - Favorites
 - Short usage hints
@@ -91,24 +94,30 @@ Contains:
 - Selecting a result updates the board immediately.
 
 ### 6.2 Starting location
-- The first version uses typed stop, station, or area input.
-- The app surfaces nearby matches from that text input.
-- Live geolocation is deferred to a later phase.
+- The app supports typed stop, station, or area input as the fallback path.
+- The app also supports browser geolocation through a `Use my location` action.
+- When location is available, the nearby panel ranks the closest stops automatically.
+- When location is unavailable or denied, the manual starting point still works.
 
-### 6.3 Recent stops
+### 6.3 Nearby buses
+- The nearby panel fetches the closest stops from the backend.
+- The UI shows distance, stop type, and live departure previews for the nearest results.
+- The first result is selected automatically so the live board can open quickly.
+
+### 6.4 Recent stops
 - Every selected stop is stored locally.
 - The app keeps only a small number of recent stops to reduce clutter.
 - Selecting a recent stop behaves the same as search results.
 
-### 6.4 Favorites
+### 6.5 Favorites
 - Favorites are loaded from Supabase when configured.
 - If Supabase variables are missing, the favorites area explains that the app still works without cloud storage.
 
-### 6.5 Live-board filtering
+### 6.6 Live-board filtering
 - Default view shows all live modes.
 - User can filter to a single mode when they only care about one transit type.
 
-### 6.6 Refresh
+### 6.7 Refresh
 - Live updates refresh automatically on a timer.
 - A manual refresh button is always available.
 
@@ -213,10 +222,11 @@ The redesign is successful if:
 ### Phase 3
 - Nearby stops
 - Location-based shortcuts
+- Nearby live bus previews
 - More deployment polish
 
 ## 13. Open Questions
 
-- Should we add nearby-location search next, or keep the next release purely stop-search focused?
+- Should we expand the nearby panel into a more map-like experience, or keep it list-first?
 - Do we want cloud favorites to remain optional, or become a required part of the product later?
 - Should the app eventually support a dedicated mobile/PWA install flow?
