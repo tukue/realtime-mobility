@@ -37,10 +37,10 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
   useEffect(() => {
     isMounted.current = true;
     setActiveMode('all');
-    fetchDepartures(false);
+    fetchFavorites(false);
 
     const interval = setInterval(() => {
-      fetchDepartures(true);
+      fetchFavorites(true);
     }, 30000);
 
     return () => {
@@ -49,7 +49,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
     };
   }, [site]);
 
-  const fetchDepartures = async (silent = false) => {
+  const fetchFavorites = async (silent = false) => {
     const requestId = ++requestIdRef.current;
 
     if (!silent) {
@@ -158,7 +158,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
         <div style={styles.errorCard}>
           <div style={styles.errorTitle}>Something went wrong</div>
           <div style={styles.errorText}>{error}</div>
-          <button onClick={() => fetchDepartures(false)} style={styles.retryButton}>
+          <button onClick={() => fetchFavorites(false)} style={styles.retryButton}>
             Try again
           </button>
         </div>
@@ -194,7 +194,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
               {isFavorite ? '★ Saved' : '☆ Pin'}
             </button>
           )}
-          <button onClick={() => fetchDepartures(true)} style={styles.refreshButton}>
+          <button onClick={() => fetchFavorites(true)} style={styles.refreshButton}>
             {refreshing ? 'Refreshing...' : 'Refresh now'}
           </button>
         </div>
