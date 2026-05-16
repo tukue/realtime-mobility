@@ -5,10 +5,9 @@ import { LocalFavorite } from '../hooks/useLocalFavorites';
 interface FavoritesListProps {
   favorites: LocalFavorite[];
   onSiteSelect: (site: Site) => void;
-  onClearAll: () => void;
 }
 
-function FavoritesList({ favorites, onSiteSelect, onClearAll }: FavoritesListProps) {
+function FavoritesList({ favorites, onSiteSelect }: FavoritesListProps) {
   if (favorites.length === 0) {
     return (
       <div style={styles.empty}>
@@ -23,12 +22,6 @@ function FavoritesList({ favorites, onSiteSelect, onClearAll }: FavoritesListPro
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <h3 style={styles.title}>Saved stops</h3>
-        <button type="button" onClick={onClearAll} style={styles.clearButton}>
-          Clear all
-        </button>
-      </div>
       <div style={styles.list}>
         {favorites.map((fav) => (
           <button

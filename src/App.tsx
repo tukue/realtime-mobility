@@ -249,11 +249,17 @@ function App() {
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
-              <div style={styles.cardLabel}>Saved stops</div>
+              <div style={styles.cardHeader}>
+                <div style={styles.cardLabel}>Saved stops</div>
+                {favorites.length > 0 && (
+                  <button type="button" onClick={clearAll} style={styles.clearFavoritesButton}>
+                    Unpin
+                  </button>
+                )}
+              </div>
               <FavoritesList
                 favorites={favorites}
                 onSiteSelect={handleSiteSelect}
-                onClearAll={clearAll}
               />
             </div>
 
@@ -433,7 +439,22 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--muted)',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '12px',
+  },
+  clearFavoritesButton: {
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    color: 'var(--muted)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid var(--border)',
+    borderRadius: '999px',
+    padding: '4px 10px',
+    cursor: 'pointer',
   },
   cardLead: {
     marginBottom: '14px',
