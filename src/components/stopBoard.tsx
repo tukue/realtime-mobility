@@ -7,6 +7,8 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 interface StopBoardProps {
   site: Site;
   startingLocation?: string;
+  isFavorite?: boolean;
+  onToggleFavorite?: (site: Site) => void;
 }
 
 type ModeKey = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
@@ -20,7 +22,7 @@ const MODE_META: Record<DepartureArrayKey, { label: string; color: string; key: 
   ships: { label: 'Ship', color: '#0d8f8f', key: 'ships' },
 };
 
-function StopBoard({ site, startingLocation }: StopBoardProps) {
+function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: StopBoardProps) {
   const isMobile = useMediaQuery('(max-width: 720px)');
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,10 +37,10 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
   useEffect(() => {
     isMounted.current = true;
     setActiveMode('all');
-    fetchDepartures(false);
+    fetchFavorites(false);
 
     const interval = setInterval(() => {
-      fetchDepartures(true);
+      fetchFavorites(true);
     }, 30000);
 
     return () => {
@@ -47,7 +49,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     };
   }, [site]);
 
-  const fetchDepartures = async (silent = false) => {
+  const fetchFavorites = async (silent = false) => {
     const requestId = ++requestIdRef.current;
 
     if (!silent) {
@@ -156,7 +158,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
         <div style={styles.errorCard}>
           <div style={styles.errorTitle}>Something went wrong</div>
           <div style={styles.errorText}>{error}</div>
-          <button onClick={() => fetchDepartures(false)} style={styles.retryButton}>
+          <button onClick={() => fetchFavorites(false)} style={styles.retryButton}>
             Try again
           </button>
         </div>
@@ -181,9 +183,21 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
           </div>
         </div>
 
-        <button onClick={() => fetchDepartures(true)} style={styles.refreshButton}>
-          {refreshing ? 'Refreshing...' : 'Refresh now'}
-        </button>
+        <div style={styles.headerActions}>
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={() => onToggleFavorite(site)}
+              style={isFavorite ? styles.pinButtonActive : styles.pinButton}
+              title={isFavorite ? 'Unpin stop' : 'Pin stop'}
+            >
+              {isFavorite ? '★ Saved' : '☆ Pin'}
+            </button>
+          )}
+          <button onClick={() => fetchFavorites(true)} style={styles.refreshButton}>
+            {refreshing ? 'Refreshing...' : 'Refresh now'}
+          </button>
+        </div>
       </div>
 
       <DisruptionBanner siteId={site.SiteId} />
@@ -271,6 +285,32 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.96rem',
     lineHeight: 1.5,
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '10px',
+    flexShrink: 0,
+    alignItems: 'center',
+  },
+  pinButton: {
+    padding: '12px 16px',
+    fontSize: '0.92rem',
+    fontWeight: 800,
+    background: 'rgba(255, 200, 0, 0.1)',
+    color: '#ffe08a',
+    border: '1px solid rgba(255, 200, 0, 0.3)',
+    borderRadius: '14px',
+    cursor: 'pointer',
+  },
+  pinButtonActive: {
+    padding: '12px 16px',
+    fontSize: '0.92rem',
+    fontWeight: 800,
+    background: 'rgba(255, 200, 0, 0.2)',
+    color: '#ffd75e',
+    border: '1px solid rgba(255, 200, 0, 0.5)',
+    borderRadius: '14px',
+    cursor: 'pointer',
   },
   refreshButton: {
     flexShrink: 0,

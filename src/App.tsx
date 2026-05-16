@@ -5,6 +5,7 @@ import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
 
 import { useMediaQuery } from './hooks/useMediaQuery';
+import { useLocalFavorites } from './hooks/useLocalFavorites';
 import { Site } from './types';
 
 const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
@@ -44,6 +45,7 @@ function App() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const { favorites, isFavorite, toggleFavorite, clearAll } = useLocalFavorites();
   const backendPill =
     backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger;
 
@@ -247,8 +249,18 @@ function App() {
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
-              <div style={styles.cardLabel}>Saved stops</div>
-              <FavoritesList onSiteSelect={handleSiteSelect} />
+              <div style={styles.cardHeader}>
+                <div style={styles.cardLabel}>Saved stops</div>
+                {favorites.length > 0 && (
+                  <button type="button" onClick={clearAll} style={styles.clearFavoritesButton}>
+                    Unpin
+                  </button>
+                )}
+              </div>
+              <FavoritesList
+                favorites={favorites}
+                onSiteSelect={handleSiteSelect}
+              />
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
@@ -263,7 +275,12 @@ function App() {
 
           <section style={styles.boardArea}>
             {selectedSite ? (
-              <StopBoard site={selectedSite} startingLocation={startingLocation} />
+              <StopBoard
+                site={selectedSite}
+                startingLocation={startingLocation}
+                isFavorite={isFavorite(selectedSite.SiteId)}
+                onToggleFavorite={toggleFavorite}
+              />
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
@@ -422,7 +439,22 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--muted)',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '12px',
+  },
+  clearFavoritesButton: {
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    color: 'var(--muted)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid var(--border)',
+    borderRadius: '999px',
+    padding: '4px 10px',
+    cursor: 'pointer',
   },
   cardLead: {
     marginBottom: '14px',
