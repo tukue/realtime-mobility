@@ -1,5 +1,5 @@
 import React from 'react';
-import { Departure } from '../types';
+import { Departure, getDeviationText } from '../types';
 
 interface LiveBoardCardProps {
   entry: Departure;
@@ -7,7 +7,9 @@ interface LiveBoardCardProps {
 }
 
 function LiveBoardCard({ entry, color }: LiveBoardCardProps) {
-  const hasDeviations = entry.has_deviations || (entry.deviations && entry.deviations.length > 0);
+  const deviations = entry.deviations ?? [];
+  const hasDeviations = entry.has_deviations || deviations.length > 0;
+  const deviationText = hasDeviations ? getDeviationText(deviations[0]) || 'Possible delay' : '';
   const transportMode = entry.transport_mode ? entry.transport_mode.toUpperCase() : 'LIVE';
 
   return (
@@ -25,7 +27,13 @@ function LiveBoardCard({ entry, color }: LiveBoardCardProps) {
 
         <div style={styles.bottomRow}>
           <div style={styles.meta}>{entry.expected_datetime}</div>
-          {hasDeviations ? <div style={styles.alert}>Possible delay</div> : <div style={styles.ok}>On track</div>}
+          {hasDeviations ? (
+            <div style={styles.deviationWrap}>
+              <span style={styles.alert}>{deviationText}</span>
+            </div>
+          ) : (
+            <div style={styles.ok}>On track</div>
+          )}
         </div>
       </div>
     </div>
@@ -109,6 +117,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.88rem',
     lineHeight: 1.4,
   },
+  deviationWrap: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: '6px',
+  },
   alert: {
     padding: '6px 10px',
     borderRadius: '999px',
@@ -116,8 +129,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#ffc1c1',
     fontSize: '0.78rem',
     fontWeight: 800,
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
     letterSpacing: '0.08em',
+    maxWidth: '260px',
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
+    whiteSpace: 'nowrap' as const,
   },
   ok: {
     padding: '6px 10px',

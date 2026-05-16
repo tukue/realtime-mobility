@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Site, DepartureData, Departure } from '../types';
+import { Site, DepartureData, Departure, StopDeviation } from '../types';
 import LiveBoardCard from './LiveBoardCard';
 import DisruptionBanner from './DisruptionBanner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -10,8 +10,9 @@ interface StopBoardProps {
 }
 
 type ModeKey = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
+type DepartureArrayKey = 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
 
-const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string; key: keyof DepartureData }> = {
+const MODE_META: Record<DepartureArrayKey, { label: string; color: string; key: DepartureArrayKey }> = {
   buses: { label: 'Bus', color: '#d91f2a', key: 'buses' },
   metros: { label: 'Metro', color: '#0078d4', key: 'metros' },
   trains: { label: 'Train', color: '#6b5cff', key: 'trains' },
@@ -91,7 +92,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       ships: [],
     };
 
-    return (Object.keys(MODE_META) as Array<Exclude<ModeKey, 'all'>>).map((mode) => {
+    return (Object.keys(MODE_META) as DepartureArrayKey[]).map((mode) => {
       const meta = MODE_META[mode];
       const items = current[meta.key] ?? [];
 
@@ -187,6 +188,10 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
 
       <DisruptionBanner siteId={site.SiteId} />
 
+      {departures?.stop_deviations && departures.stop_deviations.length > 0 && (
+        <StopDeviationsBanner deviations={departures.stop_deviations} />
+      )}
+
       <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>        <button
           type="button"
           onClick={() => setActiveMode('all')}
@@ -195,7 +200,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
           All
         </button>
 
-        {(Object.keys(MODE_META) as Array<Exclude<ModeKey, 'all'>>).map((mode) => {
+        {(Object.keys(MODE_META) as DepartureArrayKey[]).map((mode) => {
           const section = modeSections.find((item) => item.mode === mode);
           const isActive = activeMode === mode;
 
@@ -415,6 +420,44 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     background: 'rgba(255, 255, 255, 0.04)',
   },
+  stopDeviationBanner: {
+    display: 'grid',
+    gap: '10px',
+    marginBottom: '18px',
+    padding: '14px 16px',
+    borderRadius: '18px',
+    background: 'rgba(255, 200, 0, 0.08)',
+    border: '1px solid rgba(255, 200, 0, 0.25)',
+  },
+  stopDeviationItem: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'flex-start',
+    lineHeight: 1.45,
+    color: '#ffe08a',
+    fontSize: '0.9rem',
+  },
+  stopDeviationIcon: {
+    flexShrink: 0,
+    fontSize: '1rem',
+    marginTop: '1px',
+  },
+  stopDeviationText: {
+    color: 'inherit',
+  },
 };
+
+function StopDeviationsBanner({ deviations }: { deviations: StopDeviation[] }) {
+  return (
+    <div style={styles.stopDeviationBanner}>
+      {deviations.map((dev) => (
+        <div key={dev.id} style={styles.stopDeviationItem}>
+          <span style={styles.stopDeviationIcon}>⚠</span>
+          <span style={styles.stopDeviationText}>{dev.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default StopBoard;

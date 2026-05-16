@@ -22,15 +22,37 @@ def _normalize_alert(raw: dict[str, Any]) -> dict[str, Any]:
     if isinstance(scope, str):
         scope = [scope]
 
+    variants = raw.get("message_variants") or []
+    variant = variants[0] if isinstance(variants, list) and variants else {}
+
     return {
-        "id": str(raw.get("id") or raw.get("deviationId") or ""),
-        "header": raw.get("header") or raw.get("description") or raw.get("title") or "",
-        "details": raw.get("details") or raw.get("details_short") or raw.get("body") or "",
-        "severity": map_severity(str(raw.get("severity") or raw.get("priority") or "")),
+        "id": str(raw.get("id") or raw.get("deviation_case_id") or raw.get("deviationId") or ""),
+        "header": (
+            variant.get("header")
+            or raw.get("header")
+            or raw.get("description")
+            or raw.get("title")
+            or ""
+        ),
+        "details": (
+            variant.get("details")
+            or raw.get("details")
+            or raw.get("details_short")
+            or raw.get("body")
+            or ""
+        ),
+        "severity": map_severity(
+            str(
+                raw.get("severity")
+                or (raw.get("priority") or {}).get("importance_level")
+                or raw.get("priority")
+                or ""
+            )
+        ),
         "scope": [str(s) for s in scope],
         "transport_mode": raw.get("transport_mode") or raw.get("transportMode"),
-        "valid_from": raw.get("valid_from") or raw.get("validFrom"),
-        "valid_to": raw.get("valid_to") or raw.get("validTo"),
+        "valid_from": raw.get("valid_from") or raw.get("validFrom") or (raw.get("publish") or {}).get("from"),
+        "valid_to": raw.get("valid_to") or raw.get("validTo") or (raw.get("publish") or {}).get("upto"),
     }
 
 
