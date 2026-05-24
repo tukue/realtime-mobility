@@ -8,118 +8,72 @@ A full-stack application connecting Stockholm's public transit data (SL Trafikla
 
 ## Architecture
 
-### System Overview
-
 ```mermaid
 graph TB
-    User[User / Browser] --> FE[React SPA<br/>Vite + TypeScript]
-    FE --> API[FastAPI Backend<br/>Port 8000]
-    API --> SL1[SL Realtidsinformation 4<br/>Live Departures]
-    API --> SL2[SL Typeahead<br/>Stop Search]
-    API --> SL3[SL Deviations<br/>Service Alerts]
-    API --> SL4[SL Journey Planner<br/>Trip Planning]
-    API --> WS[WebSocket<br/>Alerts Push]
-
-    subgraph "Frontend (src/)"
-        FE --> App[App.tsx<br/>State-driven shell]
-        App --> Search[SearchBar]
-        App --> Board[stopBoard]
-        App --> Nearby[NearbyStops]
-        App --> Favorites[FavoritesList]
-        App --> AlertsComp[DisruptionBanner]
-        App --> Journey[JourneyPlanner]
+    subgraph Development["Development"]
+        DEV["Developer<br/>git push"]
     end
 
-    subgraph "Backend (backend/)"
-        API --> RouterR[realtime.py<br/>Stop Search & Departures]
-        API --> RouterL[liveboard.py<br/>Formatted Boards]
-        API --> RouterN[nearby.py<br/>Geospatial Queries]
-        API --> RouterA[alerts.py<br/>REST + WebSocket]
-        API --> RouterJ[journey.py<br/>Trip Planning]
-        RouterR --> SvcSL[sl_api.py<br/>SL API Client<br/>Normalization + Haversine]
-        RouterA --> Poller[alerts_manager.py<br/>Background Poller]
-        Poller --> WS
+    subgraph GitHub["GitHub"]
+        CI["CI/CD Pipeline<br/>GitHub Actions"]
+        BUILD["Build Frontend<br/>npm ci + build"]
+        TEST["Run Tests<br/>Python unittest"]
+        DOCKER["Build Docker<br/>Image"]
+        TRIVY["Trivy Security<br/>Scan"]
+        CI --> BUILD
+        CI --> TEST
+        CI --> DOCKER
+        DOCKER --> TRIVY
     end
 
-    subgraph "Data Storage"
-        Favorites --> LS[(localStorage<br/>Favorites & Recents)]
-        Favorites --> SB[(Supabase<br/>Optional Cloud Favorites)]
+    subgraph Production["Production"]
+        RENDER["Render Deploy"]
+        TRIVY -- "pass" --> RENDER
     end
+
+    subgraph Browser["Browser"]
+        FE["React SPA<br/>Vite + TypeScript"]
+    end
+
+    subgraph Backend["FastAPI Backend (Python)"]
+        API["REST API<br/>/api/*"]
+        WS["WebSocket<br/>/api/alerts/ws/{id}"]
+        POLLER["Background Poller<br/>asyncio"]
+        API --> POLLER
+    end
+
+    subgraph Storage["Storage"]
+        LS["localStorage<br/>Favorites · Recents"]
+        SB["Supabase<br/>Cloud Favorites"]
+    end
+
+    subgraph ExternalSL["SL Trafiklab Open Data APIs"]
+        SL1["SL Typeahead<br/>Stop Search"]
+        SL2["SL Realtidsinformation 4<br/>Live Departures"]
+        SL3["SL Deviations<br/>Service Alerts"]
+        SL4["SL Journey Planner<br/>Trip Planning"]
+    end
+
+    DEV --> GitHub
+    RENDER --> Backend
+    RENDER -.->|"serves static files"| FE
+
+    FE -- "HTTP REST" --> API
+    FE -- "WebSocket" --> WS
+    FE --> LS
+    FE -.-> SB
+
+    API --> SL1
+    API --> SL2
+    API --> SL3
+    API --> SL4
+    POLLER --> SL3
+    POLLER --> WS
 ```
 
-### Data Flow
+High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans → deploys to Render → running app serves the React SPA (static) and FastAPI backend → backend proxies requests to SL Trafiklab Open APIs → live alerts pushed via WebSocket to the browser**.
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as React SPA
-    participant B as FastAPI
-    participant SL as SL Trafiklab APIs
-
-    U->>F: Search stop
-    F->>B: GET /api/realtime/search?query=T-Centralen
-    B->>SL: SL Typeahead API
-    SL-->>B: Stop results
-    B-->>F: JSON response
-    F-->>U: Autocomplete dropdown
-
-    U->>F: Select stop
-    F->>B: GET /api/liveboard/format/1234
-    B->>SL: SL Realtidsinformation 4
-    SL-->>B: Raw departures
-    B-->>F: Formatted departure data
-    F-->>U: Grouped departure cards
-
-    U->>F: Open nearby stops
-    opt Browser geolocation
-        F->>U: Request location
-        U-->>F: Coordinates
-    end
-    F->>B: GET /api/nearby/boards?lat=59.33&lon=18.07
-    B->>SL: Departures for nearby stops
-    SL-->>B: Live data
-    B-->>F: Ranked nearby stops with previews
-
-    Note over B,SL: WebSocket channel
-    B->>SL: Poll SL Deviations API (background)
-    SL-->>B: Alert updates
-    B-->>F: WS push /api/alerts/ws/{site_id}
-    F-->>U: Disruption banner with severity
-
-    U->>F: Plan journey
-    F->>B: POST /api/journey/plan
-    B->>SL: SL Journey Planner API
-    SL-->>B: Trip options
-    B-->>F: Normalized journeys
-    F-->>U: Trip cards with expandable legs
-```
-
-### Frontend Component Tree
-
-```mermaid
-graph TD
-    App[App.tsx<br/>Root shell + state]
-    App --> Header[Header<br/>Backend health pill]
-    App --> Sidebar[Sidebar]
-    App --> BoardArea[Board Area]
-
-    Sidebar --> SB[SearchBar<br/>Typeahead autocomplete]
-    Sidebar --> NS[NearbyStops<br/>Geolocation + manual input]
-    Sidebar --> Recents[Recent Stops<br/>localStorage, max 4]
-    Sidebar --> FL[FavoritesList<br/>localStorage / Supabase]
-
-    BoardArea --> SBComp[stopBoard<br/>Mode-filtered departure board]
-    SBComp --> LBC[LiveBoardCard<br/>Line, dest, time, deviations]
-    BoardArea --> JP[JourneyPlanner<br/>Origin → Destination trips]
-    BoardArea --> DB[DisruptionBanner<br/>WS-driven alerts]
-
-    App --> HF[useLocalFavorites hook]
-    App --> AH[useAlerts hook<br/>WS + REST fallback]
-    App --> MQ[useMediaQuery hook<br/>Responsive 900px breakpoint]
-```
-
----
-
+## Tech Stack
 ## Tech Stack
 
 | Category | Technology | Purpose |
