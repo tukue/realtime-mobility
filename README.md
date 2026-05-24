@@ -213,10 +213,7 @@ uvicorn main:app --reload --port 8000
 
 ```bash
 npm install
-npm run dev      # Vite dev server, proxies /api/* to localhost:8000
-```
-
-Open `http://localhost:5173` — the app is ready.
+npm run dev      # Starts on localhost with API proxy to backend
 
 ### Docker
 
