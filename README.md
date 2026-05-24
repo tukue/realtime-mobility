@@ -1,193 +1,295 @@
-# Stockholm transportation planner learning app
+# Stockholm Travel Planner
 
-A real-time web application for tracking bus, train, metro, tram, and ship arrivals in Stockholm using SL (Storstockholms Lokaltrafik) APIs.
+**Real-time public transport information for Stockholm — live departure boards, nearby stops, service alerts, and journey planning across all SL transport modes.**
 
-## Product planning (MVP)
+A full-stack application connecting Stockholm's public transit data (SL Trafiklab APIs) to a responsive dark-theme dashboard. Built with React + TypeScript on the frontend and Python FastAPI on the backend, containerized with Docker, and deployed via CI/CD.
 
-### 1) Target transit agencies with open realtime APIs
+---
 
-For MVP validation, we will support **Stockholm-focused providers only** so the scope stays aligned to this app:
+## Architecture
 
-1. **SL (Storstockholms Lokaltrafik) via Trafiklab APIs**
-   - **Vehicle positions:** realtime vehicle monitoring where available per mode/feed
-   - **Stop arrivals/departures:** realtime departures (e.g., SL Realtidsinformation feeds)
-   - **Service alerts:** traffic/disruption information from SL/Trafiklab datasets
-   - Why this is a fit: primary operator for metro, commuter rail, buses, trams, and local ferries in Stockholm.
+### System Overview
 
-2. **Trafikverket (Swedish Transport Administration) traffic/disruption APIs — Stockholm subset**
-   - **Vehicle positions:** not primary source for local transit vehicles (used selectively when relevant)
-   - **Stop arrivals/departures:** complementary station traffic information for regional rail context
-   - **Service alerts:** disruption/traffic situation data relevant to Stockholm area operations
-   - Why this is a fit: broad official disruption context that improves alert coverage while remaining Sweden/Stockholm scoped.
+```mermaid
+graph TB
+    User[User / Browser] --> FE[React SPA<br/>Vite + TypeScript]
+    FE --> API[FastAPI Backend<br/>Port 8000]
+    API --> SL1[SL Realtidsinformation 4<br/>Live Departures]
+    API --> SL2[SL Typeahead<br/>Stop Search]
+    API --> SL3[SL Deviations<br/>Service Alerts]
+    API --> SL4[SL Journey Planner<br/>Trip Planning]
+    API --> WS[WebSocket<br/>Alerts Push]
 
-> Implementation note: launch with SL realtime departures + stop search first, then add Stockholm-scoped Trafikverket disruption context as a secondary data source.
+    subgraph "Frontend (src/)"
+        FE --> App[App.tsx<br/>State-driven shell]
+        App --> Search[SearchBar]
+        App --> Board[stopBoard]
+        App --> Nearby[NearbyStops]
+        App --> Favorites[FavoritesList]
+        App --> AlertsComp[DisruptionBanner]
+        App --> Journey[JourneyPlanner]
+    end
 
-### 2) MVP user stories
+    subgraph "Backend (backend/)"
+        API --> RouterR[realtime.py<br/>Stop Search & Departures]
+        API --> RouterL[liveboard.py<br/>Formatted Boards]
+        API --> RouterN[nearby.py<br/>Geospatial Queries]
+        API --> RouterA[alerts.py<br/>REST + WebSocket]
+        API --> RouterJ[journey.py<br/>Trip Planning]
+        RouterR --> SvcSL[sl_api.py<br/>SL API Client<br/>Normalization + Haversine]
+        RouterA --> Poller[alerts_manager.py<br/>Background Poller]
+        Poller --> WS
+    end
 
-1. **Stop/station departures**
-   - As a rider, I can search a stop/station and see next departures.
-   - Acceptance criteria:
-     - Search returns relevant stops/stations by name within 1 interaction.
-     - Departure board shows route, destination/headsign, scheduled time, realtime estimate, and delay indicator.
-     - Board auto-refreshes (target interval: 15–30s) and clearly shows last-updated timestamp.
+    subgraph "Data Storage"
+        Favorites --> LS[(localStorage<br/>Favorites & Recents)]
+        Favorites --> SB[(Supabase<br/>Optional Cloud Favorites)]
+    end
+```
 
-2. **Live vehicle map**
-   - As a rider, I can view live vehicle positions on a map.
-   - Acceptance criteria:
-     - Map displays active vehicles for selected route/operator within Stockholm coverage.
-     - Vehicle markers include line/route and last report time.
-     - Rider can filter by route and transport mode.
+### Data Flow
 
-3. **Favorites**
-   - As a rider, I can favorite stops/routes.
-   - Acceptance criteria:
-     - Rider can save and remove favorites in one tap/click.
-     - Favorites persist across sessions.
-     - Favorites are accessible from the home/departure view without re-searching.
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as React SPA
+    participant B as FastAPI
+    participant SL as SL Trafiklab APIs
 
-### 3) Non-goals for v1
+    U->>F: Search stop
+    F->>B: GET /api/realtime/search?query=T-Centralen
+    B->>SL: SL Typeahead API
+    SL-->>B: Stop results
+    B-->>F: JSON response
+    F-->>U: Autocomplete dropdown
 
-To keep scope tight, the following are explicitly out of scope for v1:
+    U->>F: Select stop
+    F->>B: GET /api/liveboard/format/1234
+    B->>SL: SL Realtidsinformation 4
+    SL-->>B: Raw departures
+    B-->>F: Formatted departure data
+    F-->>U: Grouped departure cards
 
-- Fare calculation, fare capping, or payment/ticket purchase flows
-- Full multimodal trip planning with transfer optimization
-- Account/profile system beyond lightweight favorites persistence
-- Booking/reservations (paratransit, microtransit, or intercity services)
-- Offline-first support and push notifications
-- Historical analytics and personalized commute predictions
+    U->>F: Open nearby stops
+    opt Browser geolocation
+        F->>U: Request location
+        U-->>F: Coordinates
+    end
+    F->>B: GET /api/nearby/boards?lat=59.33&lon=18.07
+    B->>SL: Departures for nearby stops
+    SL-->>B: Live data
+    B-->>F: Ranked nearby stops with previews
 
-### 4) Success metrics
+    Note over B,SL: WebSocket channel
+    B->>SL: Poll SL Deviations API (background)
+    SL-->>B: Alert updates
+    B-->>F: WS push /api/alerts/ws/{site_id}
+    F-->>U: Disruption banner with severity
 
-MVP is considered successful when these targets are consistently met in production-like usage:
+    U->>F: Plan journey
+    F->>B: POST /api/journey/plan
+    B->>SL: SL Journey Planner API
+    SL-->>B: Trip options
+    B-->>F: Normalized journeys
+    F-->>U: Trip cards with expandable legs
+```
 
-#### Performance & reliability
-- **Median backend API response time:** < **500 ms** for stop search/departure queries
-- **P95 backend API response time:** < **1.2 s**
-- **First contentful view (app shell + first useful content):** < **2.0 s** on typical 4G/mobile hardware
-- **Departure data freshness:** realtime feed ingestion lag < **30 s** median
-- **Availability:** 99.5% monthly uptime for public API endpoints
+### Frontend Component Tree
 
-#### Product usage & quality
-- **Departure board success rate:** ≥ 98% requests return usable departures (not empty/error due to platform issues)
-- **Map render success rate:** ≥ 99% sessions can load map + vehicle layer
-- **Favorites adoption:** ≥ 25% weekly active riders save at least 1 favorite
-- **Repeat usage:** ≥ 30% 7-day return rate among users who searched at least one stop
+```mermaid
+graph TD
+    App[App.tsx<br/>Root shell + state]
+    App --> Header[Header<br/>Backend health pill]
+    App --> Sidebar[Sidebar]
+    App --> BoardArea[Board Area]
 
-## Features
+    Sidebar --> SB[SearchBar<br/>Typeahead autocomplete]
+    Sidebar --> NS[NearbyStops<br/>Geolocation + manual input]
+    Sidebar --> Recents[Recent Stops<br/>localStorage, max 4]
+    Sidebar --> FL[FavoritesList<br/>localStorage / Supabase]
 
-- Real-time departure information for all SL transport modes
-- Search for stops and stations across Stockholm
-- Use nearby buses from your current location or a typed starting point
-- Save favorite stops for quick access
-- Auto-refresh every 30 seconds
-- Clean, modern UI with color-coded transport types
+    BoardArea --> SBComp[stopBoard<br/>Mode-filtered departure board]
+    SBComp --> LBC[LiveBoardCard<br/>Line, dest, time, deviations]
+    BoardArea --> JP[JourneyPlanner<br/>Origin → Destination trips]
+    BoardArea --> DB[DisruptionBanner<br/>WS-driven alerts]
+
+    App --> HF[useLocalFavorites hook]
+    App --> AH[useAlerts hook<br/>WS + REST fallback]
+    App --> MQ[useMediaQuery hook<br/>Responsive 900px breakpoint]
+```
+
+---
 
 ## Tech Stack
 
-### Frontend
-- TypeScript
-- React
-- Vite
-- Supabase (for favorites storage)
+| Category | Technology | Purpose |
+|---|---|---|
+| **Frontend** | React 18 + TypeScript | Component-based UI with type safety |
+| **Build** | Vite 5 | Fast HMR dev server, optimized production builds |
+| **Backend** | Python 3.11+ / FastAPI | Async API server with automatic OpenAPI docs |
+| **API Client** | httpx | Async HTTP client for upstream SL API calls |
+| **Validation** | Pydantic | Request/response schema validation |
+| **Database** | Supabase (PostgreSQL) | Optional cloud favorites persistence |
+| **Container** | Docker (multi-stage) | Node build → Python runtime image |
+| **CI/CD** | GitHub Actions | Build, test, scan (Trivy), deploy (Render) |
+
+### Key Design Decisions
+
+- **No React Router** — The app uses state-driven conditional rendering in `App.tsx` rather than URL-based routing, keeping the bundle minimal for a single-view tool.
+- **No CSS framework** — All styles are inline `React.CSSProperties` objects. This avoids a CSS dependency and keeps the dark-theme styling self-contained.
+- **Graceful degradation** — Supabase is optional; the app works entirely offline-first with localStorage. WebSocket alerts fall back to REST polling with exponential backoff after 3 failed connection attempts.
+- **Dual SL API modes** — Supports both "key" (Trafiklab API key) and "free" (open endpoints) via `?source=free|key`, enabling development without paid credentials.
+
+---
+
+## Features
+
+### Live Departure Boards
+Real-time departures grouped by transport mode (Bus, Metro, Train, Tram, Ship). Each card shows line number, destination, scheduled/expected time, and deviation status. Auto-refreshes every 30 seconds with manual refresh always available.
+
+### Stop Search with Typeahead
+Async autocomplete search against SL's stop database. Returns stops with type metadata and site IDs. Recent stops (last 4) persist in localStorage for one-tap re-access.
+
+### Nearby Stops with Live Previews
+Browser geolocation or manual text input to find stops ranked by Haversine distance. Each nearby stop shows a live departure preview with mode filtering. Selection loads the full board.
+
+### Journey Planning
+Point-to-point trip planner with stop autocomplete for both origin and destination. Returns up to 5 trip options sorted by departure time, with expandable leg details (mode, line, duration, transfers).
+
+### Live Disruption Alerts
+Service alerts pushed via WebSocket with severity color-coding:
+- **Critical** (red) — Major disruptions
+- **Warning** (amber) — Significant delays
+- **Info** (blue) — Minor changes / planned work
+
+Backend runs a background asyncio task polling only for stops with active WebSocket subscribers.
+
+### Backend Health Monitoring
+Real-time status pill in the header polls `/api/health` every 30 seconds. Green/amber/red indicators let users know if the backend is reachable.
+
+---
+
+## API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Backend health check |
+| `GET` | `/api/realtime/search?query={text}` | Search stops/stations |
+| `GET` | `/api/realtime/liveboard/{site_id}` | Raw departure data |
+| `GET` | `/api/liveboard/format/{site_id}` | Formatted departure board |
+| `GET` | `/api/nearby/stops?lat={}&lon={}` | Nearby stops ranked by distance |
+| `GET` | `/api/nearby/boards?lat={}&lon={}` | Nearby stops with departure previews |
+| `GET` | `/api/nearby/train-boards?lat={}&lon={}` | Nearby train/metro stations with previews |
+| `GET` | `/api/situations/?site_id={}` | Service alerts (REST) |
+| `GET` | `/api/alerts/?site_id={}` | Alerts REST fallback |
+| `WS` | `/api/alerts/ws/{site_id}` | Live alert push |
+| `POST` | `/api/journey/plan` | Journey planning (JSON body) |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.11+
+- SL API key ([Trafiklab](https://www.trafiklab.se/)) — optional for free mode
 
 ### Backend
-- Python FastAPI
-- httpx for API calls
-- CORS enabled for local development
-
-## Setup Instructions
-
-### 1. Get SL API Key
-
-1. Visit [SL Developer Portal](https://www.trafiklab.se/)
-2. Create an account
-3. Create a new project
-4. Subscribe to the "SL Realtidsinformation 4" API
-5. Copy your API key
-
-### 2. Backend Setup
 
 ```bash
 cd backend
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
 
-Update `backend/.env` with your SL API key:
-```
-SL_REALTIME_API_KEY=your_actual_api_key_here
-```
+# Configure (optional — app runs in free mode without a key)
+cp .env.example .env
+# Edit .env with your SL_REALTIME_API_KEY
 
-Start the backend server:
-```bash
 uvicorn main:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`
+### Frontend
 
-### Deployment env vars
-
-For Docker or Render deployments, set these values in the service environment so the SL endpoints are controlled entirely by deployment config:
-
-- `SL_REALTIME_API_KEY`
-- `SL_TYPEAHEAD_URL`
-- `SL_REALTIME_URL`
-- `SL_SITUATION_URL`
-- `SL_FREE_SITES_URL`
-- `SL_FREE_DEPARTURES_URL`
-- `SL_FREE_DEVIATIONS_URL`
-
-### Render deploy gate
-
-To make Trivy block production deploys, disable Render auto-deploy for the service and set a GitHub secret named `RENDER_DEPLOY_HOOK_URL` to the Render deploy hook URL.
-
-The GitHub Actions workflow will build the Docker image, scan it with Trivy, and only trigger the Render deploy hook after the scan passes on `main`.
-
-### 3. Frontend Setup
-
-Install dependencies:
 ```bash
 npm install
+npm run dev      # Vite dev server, proxies /api/* to localhost:8000
 ```
 
-The frontend will automatically proxy API requests to the backend.
+Open `http://localhost:5173` — the app is ready.
 
-## Running the Application
+### Docker
 
-1. Start the backend server (see Backend Setup)
-2. The frontend dev server starts automatically
-3. Open your browser to the URL shown
-4. Search for a stop or station
-5. Or use nearby buses to rank the closest live stops from a starting point
-6. View real-time departures
+```bash
+docker build -t stockholm-travel-planner .
+docker run -p 8000:8000 stockholm-travel-planner
+```
 
-## API Endpoints
+---
 
-### Backend API
+## CI/CD Pipeline
 
-- `GET /api/realtime/search?query={query}` - Search for stops/stations
-- `GET /api/realtime/liveboard/{site_id}` - Get raw live board data
-- `GET /api/liveboard/format/{site_id}` - Get formatted live board data
-- `GET /api/nearby/stops?lat={lat}&lon={lon}` - Get nearby stops ranked by distance
-- `GET /api/nearby/boards?lat={lat}&lon={lon}` - Get nearby stops with live departure previews
+```mermaid
+graph LR
+    Push[Push to main] --> CI[GitHub Actions]
+    CI --> Build[Build Frontend<br/>npm ci + npm run build]
+    CI --> Test[Run Tests<br/>Python unittest]
+    CI --> Docker[Build Docker Image]
+    Docker --> Scan[Trivy Vulnerability Scan]
+    Scan --> Deploy[Render Deploy Hook]
+    Deploy --> Live[Production]
+```
 
-### SL API Documentation
+The pipeline in `.github/workflows/ci.yml`:
+1. Installs Node dependencies and builds the frontend
+2. Runs Python test suite (7 test files)
+3. Builds the multi-stage Docker image
+4. Scans with Trivy for vulnerabilities
+5. Triggers Render deploy hook (only on `main`, only if scan passes)
 
-## Features to Add
+---
 
-- Push notifications for specific lines
-- Journey planning
-- Disruption alerts
-- Offline support
-- Mobile app version
-- Historical data analysis
+## Project Structure
 
-## Development
+```
+├── backend/
+│   ├── main.py                 # FastAPI app, static file serving, health check
+│   ├── routers/
+│   │   ├── realtime.py         # Stop search + raw departures
+│   │   ├── liveboard.py        # Formatted departure boards
+│   │   ├── nearby.py           # Geospatial nearby queries
+│   │   ├── situations.py       # Service alerts REST
+│   │   ├── alerts.py           # Alerts REST + WebSocket endpoint
+│   │   └── journey.py          # Journey planning
+│   ├── services/
+│   │   ├── sl_api.py           # Core SL client, Haversine distance
+│   │   ├── sl_config.py        # Configurable API URLs
+│   │   ├── alerts_service.py   # Alert normalization
+│   │   ├── alerts_manager.py   # WebSocket manager + background poller
+│   │   └── journey_service.py  # Trip normalization
+│   └── tests/                  # 7 test files (unittest)
+├── src/
+│   ├── App.tsx                 # Application shell, state, layout
+│   ├── main.tsx                # React entry point
+│   ├── components/
+│   │   ├── SearchBar.tsx       # Stop autocomplete
+│   │   ├── stopBoard.tsx       # Live departure board + mode filters
+│   │   ├── LiveBoardCard.tsx   # Individual departure card
+│   │   ├── NearbyStops.tsx     # Nearby stops panel
+│   │   ├── FavoritesList.tsx   # Saved stops
+│   │   ├── DisruptionBanner.tsx# Live alerts
+│   │   └── JourneyPlanner.tsx  # Trip planner
+│   ├── hooks/
+│   │   ├── useLocalFavorites.ts# localStorage favorites
+│   │   ├── useAlerts.ts        # WebSocket + REST fallback
+│   │   └── useMediaQuery.ts    # Responsive breakpoints
+│   └── types/index.ts          # TypeScript interfaces
+├── Dockerfile                  # Multi-stage build
+├── .github/workflows/ci.yml    # CI/CD pipeline
+└── supabase/migrations/        # Database schema
+```
 
-The project uses:
-- Vite for fast development and building
-- TypeScript for type safety
-- FastAPI for high-performance backend
-- Supabase for database and favorites storage
+---
 
 ## License
 
