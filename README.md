@@ -6,6 +6,57 @@ A full-stack application connecting Stockholm's public transit data (SL Trafikla
 
 ---
 
+## Business Problem
+
+Stockholm's public transport system serves millions of daily journeys across buses, metro, trains, trams, and ships. SL (Storstockholms Lokaltrafik) provides open data via Trafiklab APIs, but the data is scattered across multiple endpoints with inconsistent formats and no unified consumer interface. Commuters and developers face:
+
+- **Fragmented data sources** — Real-time departures, service disruptions, and journey planning each live in separate API systems with different authentication schemes and response schemas.
+- **No consolidated view** — Travelers must juggle multiple apps and websites to get departure times, check for disruptions, and plan multi-modal trips.
+- **Contextless alerts** — Service deviation data is not filtered or prioritized by relevance to a specific stop or journey, making it difficult to quickly assess personal impact.
+- **API onboarding friction** — While SL offers both key-based and open endpoints, there is no reference implementation demonstrating how to use them together in a production-quality application.
+
+This application solves these problems by providing a **unified, real-time dashboard** that aggregates all SL data sources into a single interface with live WebSocket updates, geospatial stop discovery, multi-modal journey planning, and graceful degradation between API modes.
+
+---
+
+## System Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Client Layer (Browser)"]
+        UI["React SPA<br/>Vite + TypeScript"]
+        STORE["localStorage<br/>Favorites · Recents · Cache"]
+    end
+
+    subgraph Server["Server Layer (FastAPI / Python)"]
+        API["REST API<br/>/api/* endpoints"]
+        WS["WebSocket Server<br/>/api/alerts/ws/{id}"]
+        POLLER["Background Alert Poller<br/>asyncio"]
+        SL_CLIENT["SL API Client<br/>httpx + Pydantic"]
+        GEO["Geospatial Engine<br/>Haversine distance"]
+    end
+
+    subgraph External["External Layer"]
+        SL_APIS["SL Trafiklab APIs<br/>Typeahead · Realtime · Deviations · Journey Planner"]
+        SUPABASE["Supabase PostgreSQL<br/>Cloud favorites (optional)"]
+    end
+
+    UI -- "HTTP REST" --> API
+    UI -- "WebSocket" --> WS
+    UI --> STORE
+    UI -. "optional" .-> SUPABASE
+
+    API --> SL_CLIENT
+    API --> GEO
+    WS --> POLLER
+    POLLER --> SL_CLIENT
+    SL_CLIENT --> SL_APIS
+```
+
+**Data flow**: The React SPA communicates with the FastAPI backend via REST for departures, stop search, nearby stops, and journey planning. Live service alerts are pushed from the backend to the browser through a persistent WebSocket connection, fed by a background asyncio poller that fetches only for stops with active subscribers. The backend translates between SL's raw API responses and the frontend's expected schema, handling both key-based and free API modes transparently.
+
+---
+
 ## Architecture
 
 ```mermaid
@@ -74,7 +125,6 @@ graph TB
 High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans → deploys to Render → running app serves the React SPA (static) and FastAPI backend → backend proxies requests to SL Trafiklab Open APIs → live alerts pushed via WebSocket to the browser**.
 
 ## Tech Stack
-## Tech Stack
 
 | Category | Technology | Purpose |
 |---|---|---|
@@ -87,12 +137,36 @@ High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans →
 | **Container** | Docker (multi-stage) | Node build → Python runtime image |
 | **CI/CD** | GitHub Actions | Build, test, scan (Trivy), deploy (Render) |
 
-### Key Design Decisions
+## Design Considerations
 
-- **No React Router** — The app uses state-driven conditional rendering in `App.tsx` rather than URL-based routing, keeping the bundle minimal for a single-view tool.
-- **No CSS framework** — All styles are inline `React.CSSProperties` objects. This avoids a CSS dependency and keeps the dark-theme styling self-contained.
-- **Graceful degradation** — Supabase is optional; the app works entirely offline-first with localStorage. WebSocket alerts fall back to REST polling with exponential backoff after 3 failed connection attempts.
-- **Dual SL API modes** — Supports both "key" (Trafiklab API key) and "free" (open endpoints) via `?source=free|key`, enabling development without paid credentials.
+### Architecture Decisions
+
+- **Backend: Python FastAPI** — Chosen for its native `asyncio` support, which is essential for non-blocking HTTP calls to upstream SL APIs and concurrent WebSocket connections. Automatic OpenAPI docs provide a built-in client for debugging.
+- **Frontend: React + TypeScript** — TypeScript catches schema mismatches between SL API responses and the UI at compile time. The component model maps naturally to the card-based departure board UI.
+- **WebSocket for alerts** — Service disruptions need real-time push. FastAPI's WebSocket support enables the backend to push filtered alerts only to subscribers of specific stops, avoiding client-side polling overhead.
+
+### State & Data Management
+
+- **No React Router** — The app is a single-view dashboard. State-driven conditional rendering in `App.tsx` keeps the bundle minimal and avoids URL complexity for a tool that has no navigable pages.
+- **No CSS framework** — All styles are inline `React.CSSProperties`. This eliminates a CSS dependency, keeps the dark-theme styling self-contained in one codebase, and avoids class-name collisions.
+- **localStorage-first persistence** — Favorites and recent stops are stored client-side by default. Supabase cloud sync is an optional opt-in, keeping the core experience dependency-free.
+
+### Resilience & Error Handling
+
+- **Graceful degradation** — Every feature has a fallback: WebSocket → REST polling with exponential backoff (3 attempts before giving up); Supabase → localStorage; SL API key → free/open endpoints.
+- **Background poller isolation** — The alert poller runs as an independent asyncio task. If it crashes, it restarts without affecting REST endpoints. Subscribers per stop are tracked so the poller only fetches data for actively viewed stops.
+- **Health monitoring** — The backend exposes `/api/health`; the frontend polls it every 30 seconds and displays a color-coded indicator, giving immediate visibility into connectivity issues.
+
+### Security
+
+- **API key isolation** — SL API keys are used only server-side. The frontend never sees raw keys, preventing client-side exposure. Both key-based and free modes are supported server-side with a simple query parameter switch.
+- **No authentication** — The app is intentionally stateless and authentication-free. Favorites are personal (localStorage) or opt-in (Supabase anon key). This eliminates credential management and attack surface.
+
+### Performance
+
+- **Selective polling** — The alert manager polls only for stops with active WebSocket subscribers, minimizing upstream API calls and server resource usage.
+- **30-second refresh cadence** — Departure boards auto-refresh at 30s, balancing freshness against SL API rate limits. Manual refresh is always available for immediate updates.
+- **Minimal bundle** — No router, no CSS framework, no state management library. The frontend ships only what it uses, keeping initial load time low.
 
 ---
 
