@@ -4,21 +4,6 @@
 
 A full-stack application connecting Stockholm's public transit data (SL Trafiklab APIs) to a responsive dark-theme dashboard. Built with React + TypeScript on the frontend and Python FastAPI on the backend, containerized with Docker, and deployed via CI/CD.
 
----
-
-## Business Problem
-
-Stockholm's public transport system serves millions of daily journeys across buses, metro, trains, trams, and ships. SL (Storstockholms Lokaltrafik) provides open data via Trafiklab APIs, but the data is scattered across multiple endpoints with inconsistent formats and no unified consumer interface. Commuters and developers face:
-
-- **Fragmented data sources** — Real-time departures, service disruptions, and journey planning each live in separate API systems with different authentication schemes and response schemas.
-- **No consolidated view** — Travelers must juggle multiple apps and websites to get departure times, check for disruptions, and plan multi-modal trips.
-- **Contextless alerts** — Service deviation data is not filtered or prioritized by relevance to a specific stop or journey, making it difficult to quickly assess personal impact.
-- **API onboarding friction** — While SL offers both key-based and open endpoints, there is no reference implementation demonstrating how to use them together in a production-quality application.
-
-This application solves these problems by providing a **unified, real-time dashboard** that aggregates all SL data sources into a single interface with live WebSocket updates, geospatial stop discovery, multi-modal journey planning, and graceful degradation between API modes.
-
----
-
 ## System Architecture
 
 ```mermaid
