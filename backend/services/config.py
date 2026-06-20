@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     sl_free_departures_url: str = "https://transport.integration.sl.se/v1/sites/{site_id}/departures"
     sl_free_deviations_url: str = "https://deviations.integration.sl.se/v1/messages"
     sl_journey_url: str = "https://journeyplanner.integration.sl.se/v1/journey.json"
+    cors_origins: list[str] = ["*"]
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
