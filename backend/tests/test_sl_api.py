@@ -284,6 +284,7 @@ class SlApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload[0]["transport_mode"], "bus")
         self.assertTrue(payload[0]["has_deviations"])
 
+    # departure payload normalization terminology
     def test_normalize_departure_payload_returns_consistent_shape(self):
         raw = {
             "StatusCode": 0,
