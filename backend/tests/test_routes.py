@@ -1,46 +1,66 @@
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from starlette.requests import Request
 
 from routers import liveboard, nearby, realtime, situations
+
+
+def _mock_request() -> MagicMock:
+    return MagicMock(spec=Request)
+
+
+def _mock_client() -> AsyncMock:
+    return AsyncMock()
 
 
 class RouteTests(unittest.IsolatedAsyncioTestCase):
     @patch("routers.realtime.search_stops", new=AsyncMock())
     async def test_realtime_search_route_delegates_to_service(self):
         realtime.search_stops.return_value = {"ResponseData": [{"Name": "Norgegatan"}]}
-        payload = await realtime.search_site("Norgegatan")
+        payload = await realtime.search_site(
+            _mock_request(), "Norgegatan", client=_mock_client(),
+        )
         self.assertEqual(payload["ResponseData"][0]["Name"], "Norgegatan")
 
     @patch("routers.realtime.search_stops_free", new=AsyncMock())
     async def test_realtime_search_route_can_use_free_source(self):
         realtime.search_stops_free.return_value = [{"name": "Norgegatan"}]
-        payload = await realtime.search_site("Norgegatan", source="free")
+        payload = await realtime.search_site(
+            _mock_request(), "Norgegatan", source="free", client=_mock_client(),
+        )
         self.assertEqual(payload["ResponseData"][0]["Name"], "Norgegatan")
 
     @patch("routers.liveboard.fetch_realtime_departures", new=AsyncMock())
     async def test_liveboard_route_returns_normalized_payload(self):
         liveboard.fetch_realtime_departures.return_value = {
-            "ResponseData": {"Buses": [], "Name": "Test stop"}
+            "ResponseData": {"Buses": [], "Name": "Test stop"},
         }
-        payload = await liveboard.get_formatted_liveboard(9117)
+        payload = await liveboard.get_formatted_liveboard(
+            _mock_request(), 9117, client=_mock_client(),
+        )
         self.assertEqual(payload["site_id"], 9117)
         self.assertEqual(payload["site_name"], "Test stop")
 
     @patch("routers.situations.fetch_service_alerts", new=AsyncMock())
     async def test_situations_route_delegates_to_service(self):
         situations.fetch_service_alerts.return_value = {
-            "status": "ok", "alerts": [{"Text": "Delay"}]
+            "status": "ok", "alerts": [{"Text": "Delay"}],
         }
-        payload = await situations.get_service_alerts(site_id=9117)
+        payload = await situations.get_service_alerts(
+            _mock_request(), site_id=9117, client=_mock_client(),
+        )
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["alerts"][0]["Text"], "Delay")
 
     @patch("routers.situations.fetch_service_alerts_free", new=AsyncMock())
     async def test_situations_route_can_use_free_source(self):
         situations.fetch_service_alerts_free.return_value = {
-            "status": "ok", "alerts": [{"message": "Delay"}]
+            "status": "ok", "alerts": [{"message": "Delay"}],
         }
-        payload = await situations.get_service_alerts(site_id=9117, source="free")
+        payload = await situations.get_service_alerts(
+            _mock_request(), site_id=9117, source="free", client=_mock_client(),
+        )
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["alerts"][0]["message"], "Delay")
 
@@ -54,9 +74,11 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
                 "X": "18.0456865578456",
                 "Y": "59.3431180362708",
                 "distance_meters": 123,
-            }
+            },
         ]
-        payload = await nearby.get_nearby_stops(lat=59.34, lon=18.04)
+        payload = await nearby.get_nearby_stops(
+            _mock_request(), lat=59.34, lon=18.04, client=_mock_client(),
+        )
         self.assertEqual(payload["ResponseData"][0]["Name"], "Norgegatan")
         self.assertEqual(payload["ResponseData"][0]["distance_meters"], 123)
 
@@ -80,9 +102,11 @@ class RouteTests(unittest.IsolatedAsyncioTestCase):
                     "trams": [],
                     "ships": [],
                 },
-            }
+            },
         ]
-        payload = await nearby.get_nearby_stop_boards(lat=59.34, lon=18.04)
+        payload = await nearby.get_nearby_stop_boards(
+            _mock_request(), lat=59.34, lon=18.04, client=_mock_client(),
+        )
         self.assertEqual(
             payload["ResponseData"][0]["departures"]["buses"][0]["destination"],
             "Radiohuset",

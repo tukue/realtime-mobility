@@ -14,16 +14,17 @@ from starlette.websockets import WebSocketDisconnect
 
 from services.alerts_service import fetch_alerts_for_site, map_severity
 from services.alerts_manager import AlertsConnectionManager, AlertsPoller
+from services.dependencies import get_http_client
 from routers.alerts import router
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+
 
 def _make_app():
     app = FastAPI()
     app.include_router(router, prefix="/api/alerts")
+    client = AsyncMock(spec=httpx.AsyncClient)
+    app.dependency_overrides[get_http_client] = lambda: client
     return app
 
 
@@ -86,7 +87,7 @@ class TestFetchAlertsForSite(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(result["alerts"]), 1)
         alert = result["alerts"][0]
         self.assertEqual(alert["id"], "1")
-        self.assertEqual(alert["severity"], "critical")   # "high" → "critical"
+        self.assertEqual(alert["severity"], "critical")
         self.assertEqual(alert["scope"], ["55"])
 
     async def test_severity_always_valid(self):
@@ -122,7 +123,6 @@ class TestFetchAlertsForSite(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["status"], "ok")
 
     async def test_handles_missing_fields_gracefully(self):
-        """normalize_alert must not raise on partial/empty dicts."""
         raw_alerts = [{}, {"id": None}, {"severity": None, "scope": None}]
         with patch("services.alerts_service.fetch_service_alerts_free",
                    new=AsyncMock(return_value={"status": "ok", "alerts": raw_alerts})):
@@ -159,7 +159,6 @@ class TestAlertsConnectionManager(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("9001", mgr.active_site_ids())
 
     async def test_subscriber_count_is_non_negative(self):
-        """Property: subscriber_count never goes below 0."""
         mgr = AlertsConnectionManager()
         ws = _make_ws()
         await mgr.disconnect(ws, "9001")
@@ -188,7 +187,6 @@ class TestAlertsConnectionManager(unittest.IsolatedAsyncioTestCase):
     async def test_broadcast_removes_disconnected_socket(self):
         mgr = AlertsConnectionManager()
         ws = _make_ws()
-        # First call (connect message) succeeds; second call (broadcast) raises
         ws.send_json.side_effect = [None, WebSocketDisconnect()]
         await mgr.connect(ws, "9001")
 
@@ -262,7 +260,6 @@ class TestAlertsPoller(unittest.IsolatedAsyncioTestCase):
         mock_fetch.assert_not_called()
 
     async def test_every_active_site_receives_exactly_one_broadcast_per_tick(self):
-        """Property: each site with subscribers gets exactly one broadcast per tick."""
         mgr = AlertsConnectionManager()
         ws1, ws2 = _make_ws(), _make_ws()
         await mgr.connect(ws1, "9001")
@@ -278,7 +275,7 @@ class TestAlertsPoller(unittest.IsolatedAsyncioTestCase):
         for ws, site_id in [(ws1, "9001"), (ws2, "9002")]:
             self.assertEqual(
                 len(_broadcasts_of_type(ws, "alerts")), 1,
-                f"site {site_id} should get exactly 1 broadcast"
+                f"site {site_id} should get exactly 1 broadcast",
             )
 
 
@@ -309,7 +306,6 @@ class TestAlertsRestRouter(unittest.TestCase):
                    new=AsyncMock(return_value=error_data)):
             response = self.client.get("/api/alerts/?site_id=9001")
 
-        # Must return 200 with empty arrays, not an HTTP error (Req 3.3)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["alerts"], [])
 

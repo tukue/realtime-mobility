@@ -1,18 +1,42 @@
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from httpx import AsyncClient, Limits, Timeout
 
 from routers import realtime, liveboard, situations, nearby, alerts, journey
 from services.alerts_manager import poller
 from services.config import get_settings
+from services.dependencies import limiter
 from services.exceptions import SLApiError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.http_client = AsyncClient(
+        timeout=Timeout(10.0),
+        limits=Limits(max_keepalive_connections=20, max_connections=100),
+    )
+    task = asyncio.create_task(poller.start())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        await poller.stop()
+        await app.state.http_client.aclose()
 
 
 @asynccontextmanager
@@ -37,6 +61,9 @@ settings = get_settings()
 cors_origins = settings.cors_origins
 cors_allow_credentials = cors_origins != ["*"]
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
@@ -44,6 +71,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = (time.time() - start) * 1000
+    logger.info(
+        "%s %s %s (%.0fms)",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 app.include_router(realtime.router, prefix="/api/realtime", tags=["realtime"])
 app.include_router(nearby.router, prefix="/api/nearby", tags=["nearby"])

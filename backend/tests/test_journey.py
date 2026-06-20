@@ -10,18 +10,23 @@ from unittest.mock import AsyncMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from services.dependencies import get_http_client
 from services.journey_service import normalize_leg, plan_journey
 from routers.journey import router
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+
 
 def _make_app():
     app = FastAPI()
     app.include_router(router, prefix="/api/journey")
+    app.dependency_overrides[get_http_client] = lambda: AsyncMock()
     return app
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
 
 
 def _raw_leg(
@@ -49,9 +54,12 @@ def _raw_trip(dep="10:00", arr="10:30", dur="30", chg=1, legs=None) -> dict:
     }
 
 
+
+
 # ---------------------------------------------------------------------------
-# segment normalization — Requirement 6
+# normalize_leg — Requirement 6
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeLeg(unittest.TestCase):
 
@@ -62,7 +70,7 @@ class TestNormalizeLeg(unittest.TestCase):
         self.assertEqual(leg["departure_time"], "10:00")
         self.assertEqual(leg["arrival_time"], "10:05")
         self.assertEqual(leg["line_number"], "17")
-        self.assertEqual(leg["transport_mode"], "tram")   # lowercased
+        self.assertEqual(leg["transport_mode"], "tram")
         self.assertEqual(leg["direction"], "Djurgården")
 
     def test_missing_keys_default_to_empty_string(self):
@@ -89,9 +97,12 @@ class TestNormalizeLeg(unittest.TestCase):
                 self.assertIsInstance(leg[field], str, f"{field} should be str")
 
 
+
+
 # ---------------------------------------------------------------------------
 # plan_journey — Requirements 5 & 6
 # ---------------------------------------------------------------------------
+
 
 class TestPlanJourney(unittest.IsolatedAsyncioTestCase):
 
@@ -165,9 +176,12 @@ class TestPlanJourney(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(dep_times, sorted(dep_times))
 
 
+
+
 # ---------------------------------------------------------------------------
 # Journey router — POST /api/journey/plan
 # ---------------------------------------------------------------------------
+
 
 class TestJourneyRouter(unittest.TestCase):
 
