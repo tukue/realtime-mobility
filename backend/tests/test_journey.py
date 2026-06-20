@@ -7,9 +7,12 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, patch
 
+from unittest.mock import AsyncMock
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from services.dependencies import get_http_client
 from services.journey_service import normalize_leg, plan_journey
 from routers.journey import router
 
@@ -21,6 +24,7 @@ from routers.journey import router
 def _make_app():
     app = FastAPI()
     app.include_router(router, prefix="/api/journey")
+    app.dependency_overrides[get_http_client] = lambda: AsyncMock()
     return app
 
 

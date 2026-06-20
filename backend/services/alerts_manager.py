@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 import httpx
 from fastapi import WebSocket
@@ -52,12 +55,21 @@ class AlertsPoller:
         self._manager = manager
         self._interval = interval
         self._running = False
+        self._max_backoff = 120
 
     async def start(self) -> None:
         self._running = True
+        backoff = 1
         async with httpx.AsyncClient() as client:
             while self._running:
-                await self._tick(client)
+                try:
+                    await self._tick(client)
+                    backoff = 1
+                except Exception:
+                    logger.exception("Poller tick failed")
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, self._max_backoff)
+                    continue
                 await asyncio.sleep(self._interval)
 
     async def stop(self) -> None:

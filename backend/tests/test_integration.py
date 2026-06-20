@@ -4,12 +4,17 @@ from unittest.mock import AsyncMock, patch
 import httpx
 
 from main import app
+from services.dependencies import get_http_client, limiter
 
 
 class NearbyIntegrationTests(unittest.IsolatedAsyncioTestCase):
     @patch("routers.nearby.get_nearby_free_sites", new=AsyncMock())
     async def test_nearby_stops_endpoint_returns_ranked_results(self):
         from routers import nearby
+
+        app.dependency_overrides[get_http_client] = lambda: AsyncMock()
+        if not hasattr(app.state, "limiter"):
+            app.state.limiter = limiter
 
         nearby.get_nearby_free_sites.return_value = [
             {
