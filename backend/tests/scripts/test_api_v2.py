@@ -3,14 +3,10 @@ import asyncio
 import os
 from dotenv import load_dotenv
 
-# Load key from .env file
 load_dotenv()
 
-# The key is fetched from the environment variable SL_REALTIME_API_KEY
 API_KEY = os.getenv("SL_REALTIME_API_KEY")
 
-# Primary SL API Endpoints
-# Try the api.sl.se domain for search if journeyplanner is returning 502
 SEARCH_URL = "https://api.sl.se/api2/typeahead.json"
 REALTIME_URL = "https://api.sl.se/api2/realtimedeparturesV4.json"
 
@@ -19,7 +15,6 @@ async def test_api_integration():
         print("❌ Error: SL_REALTIME_API_KEY is not set correctly in backend/.env")
         return
 
-    # Security: Only print first/last 4 chars of the key
     masked_key = f"{API_KEY[:4]}...{API_KEY[-4:]}"
     print(f"--- Testing SL API (Key: {masked_key}) ---")
 
@@ -28,7 +23,6 @@ async def test_api_integration():
     }
 
     async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
-        # 1. Test Stop Search (Odenplan)
         print("\n1. Testing Stop Search (Odenplan)...")
         search_params = {
             "key": API_KEY,
@@ -41,7 +35,6 @@ async def test_api_integration():
 
             if resp.status_code == 200:
                 data = resp.json()
-                # Some SL APIs return status in the body even with HTTP 200
                 if data.get("StatusCode") == 0 or "ResponseData" in data:
                     results = data.get("ResponseData", [])
                     if results:
@@ -49,7 +42,6 @@ async def test_api_integration():
                         name = results[0].get("Name")
                         print(f"✅ Stop Search OK: Found {name} (SiteID: {site_id})")
 
-                        # 2. Test Realtime Departures for this site
                         print(f"\n2. Testing Realtime Departures for {name}...")
                         rt_params = {
                             "key": API_KEY,

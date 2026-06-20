@@ -32,7 +32,6 @@ def _parse_trip(raw_trip: dict[str, Any]) -> dict[str, Any]:
         raw_legs = [raw_legs]
     legs = [normalize_leg(leg) for leg in raw_legs if isinstance(leg, dict)]
 
-    # Duration in minutes from PT##M or similar ISO string, fallback to 0
     duration_str = raw_trip.get("dur") or ""
     try:
         duration = int(duration_str)

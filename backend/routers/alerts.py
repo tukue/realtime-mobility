@@ -34,7 +34,6 @@ async def ws_alerts(websocket: WebSocket, site_id: str):
     await manager.connect(websocket, site_id)
     try:
         while True:
-            # Keep connection alive; client sends nothing meaningful
-            await websocket.receive_text()
+            await websocket.receive_text()  # keep connection alive
     except WebSocketDisconnect:
         await manager.disconnect(websocket, site_id)

@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 API_KEY = os.getenv("SL_REALTIME_API_KEY")
 
-# The most stable "Gate" for SL Real-time data
 REALTIME_URL = "https://api.sl.se/api2/realtimedeparturesV4.json"
 
 async def explore_sl_gate():
@@ -14,7 +13,6 @@ async def explore_sl_gate():
         print("❌ No API Key found in .env")
         return
 
-    # Using Odenplan (SiteId: 9117) as a test case for "Dinner Lines"
     site_id = 9117
     print(f"--- Exploring SL Gate: {REALTIME_URL} ---")
     print(f"--- Fetching Arrivals for Site: {site_id} ---")
@@ -22,8 +20,8 @@ async def explore_sl_gate():
     params = {
         "key": API_KEY,
         "siteid": site_id,
-        "timewindow": 30, # Next 30 minutes
-        "bus": "true"      # Only focus on buses for the travel planner
+        "timewindow": 30,
+        "bus": "true"
     }
 
     try:
@@ -36,11 +34,10 @@ async def explore_sl_gate():
                     buses = data.get("ResponseData", {}).get("Buses", [])
                     print(f"✅ Connection Successful! Found {len(buses)} buses.")
 
-                    for bus in buses[:3]: # Show first 3 arrivals
+                    for bus in buses[:3]:
                         line = bus.get("LineNumber")
                         dest = bus.get("Destination")
                         display = bus.get("DisplayTime")
-                        # This is the "Arrival Date/Time" you requested
                         expected = bus.get("ExpectedDateTime")
 
                         print(f"\n🚌 Bus {line} to {dest}")

@@ -18,9 +18,7 @@ from services.dependencies import get_http_client
 from routers.alerts import router
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+
 
 def _make_app():
     app = FastAPI()

@@ -76,7 +76,6 @@ class AlertsPoller:
         self._running = False
 
     async def _tick(self, client: httpx.AsyncClient) -> None:
-        # Snapshot as sorted list so zip pairing is deterministic
         site_ids = sorted(self._manager.active_site_ids())
         if not site_ids:
             return
@@ -103,6 +102,6 @@ class AlertsPoller:
                 })
 
 
-# Singletons — imported by the router and main.py
+# Singletons — imported by routers and main.py lifespan
 manager = AlertsConnectionManager()
 poller = AlertsPoller(manager)
