@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import math
-import os
 from typing import Any, Iterable, Optional
 
 import httpx
 
+from services.config import get_settings
+from services.exceptions import SLApiError
 from services.sl_config import (
     get_sl_free_departures_url,
     get_sl_free_deviations_url,
@@ -15,17 +16,6 @@ from services.sl_config import (
     get_sl_situation_url,
     get_sl_typeahead_url,
 )
-
-
-class SLApiError(Exception):
-    def __init__(self, message: str, status_code: int = 500):
-        super().__init__(message)
-        self.message = message
-        self.status_code = status_code
-
-
-def _get_api_key(name: str) -> str:
-    return os.getenv(name, "")
 
 
 def _extract_site_items(data: Any) -> list[dict[str, Any]]:
@@ -51,7 +41,7 @@ async def _fetch_json(
 ) -> dict[str, Any]:
     if require_api_key and client is None and not params.get("key"):
         raise SLApiError(
-            "Missing SL API key. Check backend/.env and restart the backend.",
+            "Missing SL API key. Set SL_REALTIME_API_KEY in environment.",
             status_code=500,
         )
 
@@ -98,7 +88,7 @@ async def search_stops(
     client: Optional[httpx.AsyncClient] = None,
 ) -> dict[str, Any]:
     params = {
-        "key": _get_api_key("SL_REALTIME_API_KEY"),
+        "key": get_settings().sl_realtime_api_key,
         "searchstring": query,
         "stationsonly": "true" if stations_only else "false",
         "maxresults": max_results,
@@ -289,7 +279,7 @@ async def fetch_realtime_departures(
     client: Optional[httpx.AsyncClient] = None,
 ) -> dict[str, Any]:
     params = {
-        "key": _get_api_key("SL_REALTIME_API_KEY"),
+        "key": get_settings().sl_realtime_api_key,
         "siteid": site_id,
         "timewindow": time_window,
     }
@@ -319,7 +309,7 @@ async def fetch_service_alerts(
     transport_mode: Optional[str] = None,
     client: Optional[httpx.AsyncClient] = None,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {"key": _get_api_key("SL_SITUATION_API_KEY")}
+    params: dict[str, Any] = {"key": get_settings().sl_situation_api_key}
     if site_id is not None:
         params["siteid"] = site_id
     if transport_mode:

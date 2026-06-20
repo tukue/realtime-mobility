@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Query
 
 from services.sl_api import (
-    SLApiError,
     fetch_realtime_departures,
     fetch_realtime_departures_free,
     normalize_free_departure_payload,
@@ -13,26 +12,23 @@ from services.sl_api import (
 router = APIRouter()
 
 @router.get("/search")
-async def search_site(query: str, source: str = "key"):
+async def search_site(
+    query: str = Query(min_length=1, max_length=100),
+    source: str = Query(default="key", pattern="^(key|free)$"),
+):
     """Search for stops/stations by name"""
-    try:
-        if source == "free":
-            return {"ResponseData": normalize_free_sites(await search_stops_free(query))}
-        return await search_stops(query)
-    except SLApiError as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching stops: {str(e)}")
+    if source == "free":
+        return {"ResponseData": normalize_free_sites(await search_stops_free(query))}
+    return await search_stops(query)
 
 @router.get("/liveboard/{site_id}")
-async def get_departures(site_id: int, time_window: int = 60, source: str = "key"):
+async def get_departures(
+    site_id: int,
+    time_window: int = Query(default=60, ge=1, le=360),
+    source: str = Query(default="key", pattern="^(key|free)$"),
+):
     """Get real-time live board data for a specific stop/station"""
-    try:
-        if source == "free":
-            raw_departures = await fetch_realtime_departures_free(site_id)
-            return normalize_free_departure_payload(raw_departures, site_id)
-        return await fetch_realtime_departures(site_id, time_window=time_window)
-    except SLApiError as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching departures: {str(e)}")
+    if source == "free":
+        raw_departures = await fetch_realtime_departures_free(site_id)
+        return normalize_free_departure_payload(raw_departures, site_id)
+    return await fetch_realtime_departures(site_id, time_window=time_window)

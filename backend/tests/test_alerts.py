@@ -103,7 +103,7 @@ class TestFetchAlertsForSite(unittest.IsolatedAsyncioTestCase):
             self.assertIn(alert["severity"], {"info", "warning", "critical"})
 
     async def test_returns_empty_on_sl_api_error(self):
-        from services.sl_api import SLApiError
+        from services.exceptions import SLApiError
         with patch("services.alerts_service.fetch_service_alerts_free",
                    new=AsyncMock(side_effect=SLApiError("timeout", 504))):
             result = await fetch_alerts_for_site(9001)

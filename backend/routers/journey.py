@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 from typing import Optional
 
+from services.exceptions import SLApiError
 from services.journey_service import plan_journey
 
 router = APIRouter()

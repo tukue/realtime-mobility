@@ -4,7 +4,8 @@ from typing import Any, Optional
 
 import httpx
 
-from services.sl_api import SLApiError, fetch_service_alerts_free
+from services.exceptions import SLApiError
+from services.sl_api import fetch_service_alerts_free
 
 
 def map_severity(raw: str) -> str:
