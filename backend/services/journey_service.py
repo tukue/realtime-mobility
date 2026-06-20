@@ -5,7 +5,8 @@ from typing import Any, Optional
 
 import httpx
 
-from services.sl_api import SLApiError, _fetch_json
+from services.exceptions import SLApiError
+from services.sl_api import _fetch_json
 from services.sl_config import get_sl_journey_url
 
 

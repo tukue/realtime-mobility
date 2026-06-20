@@ -1,26 +1,46 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-import asyncio
+from fastapi.responses import FileResponse, JSONResponse
 
 from routers import realtime, liveboard, situations, nearby, alerts, journey
 from services.alerts_manager import poller
+from services.config import get_settings
+from services.exceptions import SLApiError
 
-app = FastAPI(title="Stockholm public travel planner API")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(poller.start())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        await poller.stop()
+
+
+app = FastAPI(title="Stockholm public travel planner API", lifespan=lifespan)
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / "dist"
 
+settings = get_settings()
+cors_origins = settings.cors_origins
+cors_allow_credentials = cors_origins != ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,9 +53,15 @@ app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
 app.include_router(journey.router, prefix="/api/journey", tags=["journey"])
 
 
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(poller.start())
+@app.exception_handler(SLApiError)
+async def sl_api_error_handler(request: Request, exc: SLApiError):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+
+
+@app.exception_handler(Exception)
+async def general_error_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception at %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 def _safe_frontend_path(requested_path: str) -> Path | None:

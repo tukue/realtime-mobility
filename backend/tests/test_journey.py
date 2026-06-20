@@ -120,7 +120,7 @@ class TestPlanJourney(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["trips"], [])
 
     async def test_empty_trips_on_sl_api_error(self):
-        from services.sl_api import SLApiError
+        from services.exceptions import SLApiError
         with patch("services.journey_service._fetch_json",
                    new=AsyncMock(side_effect=SLApiError("timeout", 504))):
             result = await plan_journey("1001", "2002")
