@@ -116,8 +116,9 @@ High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans →
 | **Frontend** | React 18 + TypeScript | Component-based UI with type safety |
 | **Build** | Vite 5 | Fast HMR dev server, optimized production builds |
 | **Backend** | Python 3.11+ / FastAPI | Async API server with automatic OpenAPI docs |
-| **API Client** | httpx | Async HTTP client for upstream SL API calls |
-| **Validation** | Pydantic | Request/response schema validation |
+| **API Client** | httpx | Async HTTP client for upstream SL API calls, connection pooling |
+| **Validation** | Pydantic / Pydantic-Settings | Request/response validation + type-safe `.env` config |
+| **Rate Limiting** | slowapi | Per-endpoint rate limiting (30 req/min) |
 | **Database** | Supabase (PostgreSQL) | Optional cloud favorites persistence |
 | **Container** | Docker (multi-stage) | Node build → Python runtime image |
 | **CI/CD** | GitHub Actions | Build, test, scan (Trivy), deploy (Render) |
@@ -138,17 +139,21 @@ High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans →
 
 ### Resilience & Error Handling
 
+- **Centralized exception handling** — `SLApiError` is caught by global handlers with structured `logger.exception()` logging. Route handlers no longer duplicate try/except blocks. Unhandled exceptions return consistent 500 responses with request context.
 - **Graceful degradation** — Every feature has a fallback: WebSocket → REST polling with exponential backoff (3 attempts before giving up); Supabase → localStorage; SL API key → free/open endpoints.
-- **Background poller isolation** — The alert poller runs as an independent asyncio task. If it crashes, it restarts without affecting REST endpoints. Subscribers per stop are tracked so the poller only fetches data for actively viewed stops.
+- **Background poller isolation** — The alert poller runs as an independent asyncio task. If it crashes, it restarts without affecting REST endpoints. Subscribers per stop are tracked so the poller only fetches data for actively viewed stops. Exponential backoff (1s → 2s → 4s … 120s cap) prevents thundering-herd on recovery.
 - **Health monitoring** — The backend exposes `/api/health`; the frontend polls it every 30 seconds and displays a color-coded indicator, giving immediate visibility into connectivity issues.
 
 ### Security
 
-- **API key isolation** — SL API keys are used only server-side. The frontend never sees raw keys, preventing client-side exposure. Both key-based and free modes are supported server-side with a simple query parameter switch.
+- **API key isolation** — SL API keys are used only server-side via Pydantic Settings (`.env`). The frontend never sees raw keys, preventing client-side exposure. Both key-based and free modes are supported server-side with a simple query parameter switch.
+- **Rate limiting** — All REST endpoints are rate-limited to 30 requests/minute per client IP via `slowapi`, protecting upstream SL API quotas.
+- **CORS hardening** — Configurable `cors_origins` in settings. Wildcard origins (`*`) automatically disable `allow_credentials` to mitigate CWE-942.
 - **No authentication** — The app is intentionally stateless and authentication-free. Favorites are personal (localStorage) or opt-in (Supabase anon key). This eliminates credential management and attack surface.
 
 ### Performance
 
+- **Connection pooling** — A shared `httpx.AsyncClient` (20 keepalive connections, 100 max) is created during app lifespan and injected via `Depends()`, avoiding per-request client creation.
 - **Selective polling** — The alert manager polls only for stops with active WebSocket subscribers, minimizing upstream API calls and server resource usage.
 - **30-second refresh cadence** — Departure boards auto-refresh at 30s, balancing freshness against SL API rate limits. Manual refresh is always available for immediate updates.
 - **Minimal bundle** — No router, no CSS framework, no state management library. The frontend ships only what it uses, keeping initial load time low.
@@ -219,6 +224,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your SL_REALTIME_API_KEY
 
+# API docs at http://localhost:8000/docs
 uvicorn main:app --reload --port 8000
 ```
 
@@ -263,7 +269,7 @@ The pipeline in `.github/workflows/ci.yml`:
 
 ```
 ├── backend/
-│   ├── main.py                 # FastAPI app, static file serving, health check
+│   ├── main.py                 # FastAPI app (lifespan, middleware, exception handlers)
 │   ├── routers/
 │   │   ├── realtime.py         # Stop search + raw departures
 │   │   ├── liveboard.py        # Formatted departure boards
@@ -272,12 +278,18 @@ The pipeline in `.github/workflows/ci.yml`:
 │   │   ├── alerts.py           # Alerts REST + WebSocket endpoint
 │   │   └── journey.py          # Journey planning
 │   ├── services/
-│   │   ├── sl_api.py           # Core SL client, Haversine distance
-│   │   ├── sl_config.py        # Configurable API URLs
+│   │   ├── config.py           # Pydantic Settings (`.env` loading, all config)
+│   │   ├── dependencies.py     # FastAPI DI (get_http_client, limiter)
+│   │   ├── schemas.py          # Pydantic response models for every endpoint
+│   │   ├── exceptions.py       # SLApiError definition
+│   │   ├── sl_api.py           # Core SL HTTP client, Haversine distance, normalizers
+│   │   ├── sl_config.py        # Configurable API URLs (wraps config.py)
 │   │   ├── alerts_service.py   # Alert normalization
-│   │   ├── alerts_manager.py   # WebSocket manager + background poller
+│   │   ├── alerts_manager.py   # WebSocket manager + background poller (exponential backoff)
 │   │   └── journey_service.py  # Trip normalization
-│   └── tests/                  # 7 test files (unittest)
+│   └── tests/
+│       ├── test_*.py           # 7 test files (unittest, 68 tests)
+│       └── scripts/            # Standalone smoke-test scripts
 ├── src/
 │   ├── App.tsx                 # Application shell, state, layout
 │   ├── main.tsx                # React entry point

@@ -39,20 +39,6 @@ async def lifespan(app: FastAPI):
         await app.state.http_client.aclose()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    task = asyncio.create_task(poller.start())
-    try:
-        yield
-    finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        await poller.stop()
-
-
 app = FastAPI(title="Stockholm public travel planner API", lifespan=lifespan)
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / "dist"
