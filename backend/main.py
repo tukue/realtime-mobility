@@ -39,20 +39,6 @@ async def lifespan(app: FastAPI):
         await app.state.http_client.aclose()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    task = asyncio.create_task(poller.start())
-    try:
-        yield
-    finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        await poller.stop()
-
-
 app = FastAPI(title="Stockholm public travel planner API", lifespan=lifespan)
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / "dist"
@@ -100,10 +86,7 @@ async def sl_api_error_handler(request: Request, exc: SLApiError):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
 
-@app.exception_handler(Exception)
-async def general_error_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled exception at %s %s", request.method, request.url.path)
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
 
 
 def _safe_frontend_path(requested_path: str) -> Path | None:
