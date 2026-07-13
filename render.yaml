@@ -2,3 +2,4 @@ services:
   - type: web
     name: realtime-mobility
     runtime: docker
+    healthCheckPath: /api/health
