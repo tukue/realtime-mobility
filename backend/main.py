@@ -136,7 +136,7 @@ async def health(request: Request):
     return JSONResponse(
         status_code=status_code,
         content={
-            "status": "healthy" if healthy else "degraded",
+            "status": "healthy" if healthy else "limited",
             "checks": checks,
         },
     )
