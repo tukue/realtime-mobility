@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,6 +29,23 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def _validate_keys(self) -> "Settings":
+        if self.sl_realtime_api_key:
+            if not self.sl_situation_api_key:
+                logger.warning(
+                    "SL_SITUATION_API_KEY is not set — falling back to "
+                    "SL_REALTIME_API_KEY for situation/alert endpoints."
+                )
+                self.sl_situation_api_key = self.sl_realtime_api_key
+        else:
+            logger.warning(
+                "SL_REALTIME_API_KEY is not set. Key-based endpoints "
+                "(source=key) will fail at runtime. "
+                "Use source=free or set the key in your .env file."
+            )
+        return self
 
 
 @lru_cache
