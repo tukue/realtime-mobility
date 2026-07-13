@@ -19,9 +19,20 @@ from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIST_DIR = BASE_DIR / "dist"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings = get_settings()
+    logger.info(
+        "Starting app — SL free API base: %s, "
+        "key-based API configured: %s",
+        settings.sl_free_sites_url,
+        bool(settings.sl_realtime_api_key),
+    )
+
     app.state.http_client = AsyncClient(
         timeout=Timeout(10.0),
         limits=Limits(max_keepalive_connections=20, max_connections=100),
@@ -40,8 +51,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Stockholm public travel planner API", lifespan=lifespan)
-BASE_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIST_DIR = BASE_DIR / "dist"
 
 settings = get_settings()
 cors_origins = settings.cors_origins
@@ -108,9 +117,30 @@ async def root():
         return FileResponse(index_file)
     return {"message": "Stockholm public travel planner API", "status": "running"}
 
+
 @app.get("/api/health")
-async def health():
-    return {"status": "healthy"}
+async def health(request: Request):
+    settings = get_settings()
+    http_client: AsyncClient | None = getattr(request.app.state, "http_client", None)
+    frontend_available = (FRONTEND_DIST_DIR / "index.html").is_file()
+
+    checks = {
+        "http_client": http_client is not None and not http_client.is_closed,
+        "sl_api_key_configured": bool(settings.sl_realtime_api_key),
+        "frontend_built": frontend_available,
+    }
+
+    healthy = all(checks.values())
+    status_code = 200 if healthy else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "healthy" if healthy else "degraded",
+            "checks": checks,
+        },
+    )
+
 
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str):
