@@ -9,7 +9,7 @@ The application is a FastAPI + React single-page app that consumes SL Trafiklab 
 | Severity | Count |
 |----------|-------|
 | CRITICAL | 1 |
-| HIGH | 4 |
+| HIGH | 3 |
 | MEDIUM | 6 |
 | LOW | 5 |
 
@@ -112,7 +112,7 @@ Browser → FastAPI (Render.com) → SL Trafiklab APIs (free + key-based)
 ### P1: API Key Hardcoded in Git-Tracked File — CRITICAL
 
 **File:** `setup_backend.sh:49`
-**Evidence:** `echo "SL_REALTIME_API_KEY=233bffb3002c456bb99d042f44d00fee" > "$DOTENV_FILE"`
+**Evidence:** `echo "SL_REALTIME_API_KEY=REDACTED_FOR_SECURITY" > "$DOTENV_FILE"`
 
 The SL API key is committed in plaintext to a tracked git file. Even though `.env` is gitignored, this script is version-controlled. Anyone with repo access (or if the repo is/ever was public) has the production API key.
 
@@ -120,7 +120,7 @@ The SL API key is committed in plaintext to a tracked git file. Even though `.en
 
 **Remediation:**
 
-1. Rotate the SL API key immediately at [Trafiklab portal](https://api.trafiklab.se)
+1. Rotate the SL API key immediately at Trafiklab portal
 2. Replace the hardcoded key in `setup_backend.sh` with a placeholder:
    ```bash
    echo "SL_REALTIME_API_KEY=your-api-key-here" > "$DOTENV_FILE"
@@ -269,8 +269,7 @@ limiter = Limiter(key_func=get_trusted_client_ip)
 | H1 | API key hardcoded in git-tracked `setup_backend.sh` | `setup_backend.sh:49` | A07 Identification & Authentication Failures |
 | H2 | CORS allows all origins | `backend/main.py:56` | A05 Security Misconfiguration |
 | H3 | No security headers | `backend/main.py` (missing) | A05 Security Misconfiguration |
-| H4 | Trivy vulnerability scanner disabled in CI | `.github/workflows/ci.yml:48-49` | A06 Vulnerable & Outdated Components |
-| H5 | WebSocket has no origin validation or connection limits | `backend/routers/alerts.py`, `alerts_manager.py` | A05 Security Misconfiguration |
+| H4 | WebSocket has no origin validation or connection limits | `backend/routers/alerts.py`, `alerts_manager.py` | A05 Security Misconfiguration |
 
 ### MEDIUM
 
@@ -457,7 +456,7 @@ Replace `ci.yml:48-49` with:
 | Priority | Action | Effort | Impact |
 |----------|--------|--------|--------|
 | P1 | Add WebSocket origin validation and connection limits | 2 hours | Prevents WS abuse |
-| P2 | Re-enable Trivy in CI pipeline | 1 hour | Catches container CVEs |
+| ~~P2~~ | ~~Re-enable Trivy in CI pipeline~~ | ~~1 hour~~ | ~~Catches container CVEs~~ ✅ |
 | P2 | Add `npm audit` and `pip-audit` to CI | 1 hour | Catches dependency CVEs |
 | P2 | Add structured logging with `structlog` | 2 hours | Enables log analysis |
 | P2 | Add rate limiting key trust for `X-Forwarded-For` | 1 hour | Prevents rate limit bypass |
@@ -609,13 +608,13 @@ If no auth is planned, disable the Supabase integration entirely and rely on `lo
 
 | Standard | Relevance |
 |----------|-----------|
-| [OWASP API Security Top 10 (2023)](https://owasp.org/API-Security/) | API endpoint security assessment |
-| [OWASP ASVS v4.0](https://owasp.org/www-project-application-security-verification-standard/) | Application security verification |
-| [NIST SP 800-53 Rev 5](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final) | Security controls catalog |
-| [CIS Docker Benchmark v1.6](https://www.cisecurity.org/benchmark/docker) | Container hardening |
-| [CIS Kubernetes Benchmark v1.8](https://www.cisecurity.org/benchmark/kubernetes) | K8s hardening (future) |
-| [Render Security Best Practices](https://render.com/docs/security) | Platform-specific hardening |
-| [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security) | Database access control |
+| OWASP API Security Top 10 (2023) | API endpoint security assessment |
+| OWASP ASVS v4.0 | Application security verification |
+| NIST SP 800-53 Rev 5 | Security controls catalog |
+| CIS Docker Benchmark v1.6 | Container hardening |
+| CIS Kubernetes Benchmark v1.8 | K8s hardening (future) |
+| Render Security Best Practices | Platform-specific hardening |
+| Supabase Row Level Security | Database access control |
 
 ---
 
