@@ -93,7 +93,7 @@ Browser → FastAPI (Render.com) → SL Trafiklab APIs (free + key-based)
 
 | Threat | Category | Risk | Finding |
 |--------|----------|------|---------|
-| Trivy vulnerability scanner disabled | Tampering | HIGH | `ci.yml:49` — no container image scanning |
+| ~~Trivy vulnerability scanner disabled~~ | ~~Tampering~~ | ~~HIGH~~ | ~~`ci.yml:49` — no container image scanning~~ ✅ Resolved |
 | No SAST for Python or TypeScript | Tampering | MEDIUM | No static analysis in pipeline |
 | No dependency audit step | Tampering | MEDIUM | `npm audit` and `pip-audit` not run |
 | No secret scanning | Info Disclosure | MEDIUM | No gitleaks/trufflehog step |
@@ -358,9 +358,9 @@ The application currently deploys to Render (not Kubernetes). If you migrate:
 
 ## 8. DevSecOps Improvements
 
-### 8.1 Re-enable Trivy Scanning
+### 8.1 Re-enable Trivy Scanning ✅ Done
 
-Replace `ci.yml:48-49` with:
+Trivy has been re-enabled in `.github/workflows/ci.yml` with the following configuration:
 
 ```yaml
 - name: Run Trivy vulnerability scanner
@@ -370,7 +370,22 @@ Replace `ci.yml:48-49` with:
     format: table
     exit-code: 1
     severity: CRITICAL,HIGH
+    ignore-unfixed: true
 ```
+
+**Key decisions:**
+- `severity: CRITICAL,HIGH` — only blocks on high-severity vulnerabilities
+- `ignore-unfixed: true` — skips vulnerabilities with no upstream fix available (e.g., Debian OS packages awaiting patches)
+- Upgraded `setuptools` to ≥83.0.0 to resolve Python package CVEs (jaraco.context CVE-2026-23949, wheel CVE-2026-24049)
+
+**Remaining accepted risks (Debian OS — no upstream fix):**
+- `zlib1g` CVE-2023-45853 (CRITICAL, `will_not_fix`)
+- `perl-base` CVE-2026-13221, CVE-2026-8376 (CRITICAL, no fix version)
+- `libsqlite3-0` CVE-2025-7458 (CRITICAL, no fix version)
+- `bsdutils`/`libblkid1`/`util-linux` CVE-2026-53615 (HIGH, no fix version)
+- `ncurses` CVE-2025-69720 (HIGH, no fix version)
+
+These will be automatically picked up when Debian publishes fixes.
 
 ### 8.2 Add SAST
 
@@ -619,5 +634,6 @@ If no auth is planned, disable the Supabase integration entirely and rely on `lo
 ---
 
 **Report generated:** 2026-07-16
+**Last updated:** 2026-07-16 — Re-enabled Trivy scanning with `ignore-unfixed`, upgraded setuptools to fix Python CVEs
 **Scope:** Full application stack (React frontend, FastAPI backend, Render deployment, Supabase, GitHub Actions CI/CD)
 **Methodology:** Static code analysis, architecture review, STRIDE threat modeling, OWASP Top 10/API 10 assessment
