@@ -22,23 +22,25 @@ class AlertsConnectionManager:
 
     def __init__(self) -> None:
         self._connections: dict[str, set[WebSocket]] = {}
+        self._ip_counts: dict[str, int] = {}
+
+    @staticmethod
+    def _get_client_ip(websocket: WebSocket) -> str:
+        forwarded_for = websocket.headers.get("x-forwarded-for", "")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+        return websocket.client.host if websocket.client else "unknown"
 
     async def connect(self, websocket: WebSocket, site_id: str) -> bool:
         """Connect a WebSocket. Returns True if rejected (caller should close)."""
-        client_ip = websocket.client.host if websocket.client else "unknown"
+        client_ip = self._get_client_ip(websocket)
         total = sum(len(s) for s in self._connections.values())
 
         if total >= self.MAX_TOTAL_CONNECTIONS:
             logger.warning("WS rejected: max total connections (%d)", self.MAX_TOTAL_CONNECTIONS)
             return True
 
-        ip_count = sum(
-            1
-            for sockets in self._connections.values()
-            for ws in sockets
-            if ws.client and ws.client.host == client_ip
-        )
-        if ip_count >= self.MAX_CONNECTIONS_PER_IP:
+        if self._ip_counts.get(client_ip, 0) >= self.MAX_CONNECTIONS_PER_IP:
             logger.warning(
                 "WS rejected: client %s hit per-IP limit (%d)",
                 client_ip,
@@ -49,14 +51,21 @@ class AlertsConnectionManager:
         if getattr(websocket, "application_state", None) != WebSocketState.CONNECTED:
             await websocket.accept()
         self._connections.setdefault(site_id, set()).add(websocket)
+        self._ip_counts[client_ip] = self._ip_counts.get(client_ip, 0) + 1
         await websocket.send_json({"type": "connected", "site_id": site_id})
         return False
 
     async def disconnect(self, websocket: WebSocket, site_id: str) -> None:
+        client_ip = self._get_client_ip(websocket)
         sockets = self._connections.get(site_id, set())
         sockets.discard(websocket)
         if not sockets:
             self._connections.pop(site_id, None)
+        count = self._ip_counts.get(client_ip, 0)
+        if count <= 1:
+            self._ip_counts.pop(client_ip, None)
+        else:
+            self._ip_counts[client_ip] = count - 1
 
     async def broadcast(self, site_id: str, data: dict[str, Any]) -> None:
         sockets = list(self._connections.get(site_id, set()))
@@ -115,10 +124,11 @@ class AlertsPoller:
         now = datetime.now(timezone.utc).isoformat()
         for site_id, result in zip(site_ids, results):
             if isinstance(result, Exception):
+                logger.error("Poller error for site %s: %s", site_id, result)
                 await self._manager.broadcast(site_id, {
                     "type": "error",
                     "site_id": site_id,
-                    "message": str(result),
+                    "message": "Failed to fetch alerts",
                 })
             else:
                 await self._manager.broadcast(site_id, {

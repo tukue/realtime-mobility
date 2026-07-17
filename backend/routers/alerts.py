@@ -36,12 +36,9 @@ async def ws_alerts(websocket: WebSocket, site_id: str):
 
     if allowed_origins != ["*"]:
         origin = websocket.headers.get("origin", "")
-        if origin and origin not in allowed_origins:
-            await websocket.accept()
+        if not origin or origin not in allowed_origins:
             await websocket.close(code=4003)
             return
-
-    await websocket.accept()
 
     if not site_id or not SITE_ID_PATTERN.match(site_id.strip()):
         await websocket.close(code=4000)
