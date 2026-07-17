@@ -125,23 +125,36 @@ The SL API key was committed in plaintext to a tracked git file. Even though `.e
 3. Use `git filter-branch` or BFG Repo-Cleaner to purge the key from git history
 4. Store the API key only in Render environment variables (never in files)
 
-### P2: Wildcard CORS Policy — HIGH
+### P2: Wildcard CORS Policy — HIGH ✅ Resolved
 
 **File:** `backend/main.py:56-68`
 **Evidence:** `cors_origins=["*"]` with `allow_methods=["*"]`, `allow_headers=["*"]`
 
 **Impact:** Any website can make cross-origin API requests. An attacker can create a malicious page that calls your API using the victim's browser, potentially causing them to exhaust their IP's rate limit or exfiltrate public transport data for surveillance.
 
-**Remediation:**
+**Remediation (completed):**
+
+1. ✅ Added `environment` field to `Settings` class in `config.py`
+2. ✅ Added CORS validation — warns if wildcard used in production
+3. ✅ Configured `ENVIRONMENT=production` and `CORS_ORIGINS` in `render.yaml`
+4. ✅ Defaults to `["http://localhost:5173"]` in development mode
 
 ```python
-# backend/main.py
-cors_origins = ["https://your-app.onrender.com"]
-if settings.environment == "development":
-    cors_origins = ["http://localhost:5173"]
-```
+# backend/services/config.py — now includes environment-aware CORS
+class Settings(BaseSettings):
+    environment: str = "development"
+    cors_origins: list[str] = ["*"]
 
-Add `environment` to `Settings` class and configure it in Render dashboard.
+    @model_validator(mode="after")
+    def _validate_keys(self) -> "Settings":
+        # ...
+        if self.environment == "production" and self.cors_origins == ["*"]:
+            logger.warning(
+                "CORS set to wildcard in production — "
+                "set CORS_ORIGINS to specific origins for security"
+            )
+        return self
+```
 
 ### P3: No Security Response Headers — HIGH
 
@@ -264,7 +277,7 @@ limiter = Limiter(key_func=get_trusted_client_ip)
 | ID | Finding | Location | OWASP |
 |----|---------|----------|-------|
 | ~~H1~~ | ~~API key hardcoded in git-tracked `setup_backend.sh`~~ | ~~`setup_backend.sh:49`~~ | ~~A07 Identification & Authentication Failures~~ ✅ |
-| H2 | CORS allows all origins | `backend/main.py:56` | A05 Security Misconfiguration |
+| ~~H2~~ | ~~CORS allows all origins~~ | ~~`backend/main.py:56`~~ | ~~A05 Security Misconfiguration~~ ✅ |
 | H3 | No security headers | `backend/main.py` (missing) | A05 Security Misconfiguration |
 | H4 | WebSocket has no origin validation or connection limits | `backend/routers/alerts.py`, `alerts_manager.py` | A05 Security Misconfiguration |
 
@@ -461,7 +474,7 @@ These will be automatically picked up when Debian publishes fixes.
 | ~~P0~~ | ~~Rotate SL API key and remove from `setup_backend.sh`~~ | ~~30 min~~ | ~~Eliminates key exposure~~ ✅ |
 | P0 | Fix Supabase RLS policies to use `auth.uid()` | 1 hour | Prevents data exfiltration |
 | P1 | Add security headers middleware | 1 hour | Mitigates clickjacking, MIME sniffing |
-| P1 | Restrict CORS to production origin | 30 min | Eliminates cross-origin abuse |
+| ~~P1~~ | ~~Restrict CORS to production origin~~ | ~~30 min~~ | ~~Eliminates cross-origin abuse~~ ✅ |
 
 ### Short-Term (Weeks 2-3) — Harden the Perimeter
 

@@ -13,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
+    environment: str = "development"
     sl_realtime_api_key: str = ""
     sl_situation_api_key: str = ""
     sl_typeahead_url: str = "https://journeyplanner.integration.sl.se/v1/typeahead.json"
@@ -45,6 +46,13 @@ class Settings(BaseSettings):
                 "(source=key) will fail at runtime. "
                 "Use source=free or set the key in your .env file."
             )
+
+        if self.environment == "production" and self.cors_origins == ["*"]:
+            logger.warning(
+                "CORS set to wildcard in production — "
+                "set CORS_ORIGINS to specific origins for security"
+            )
+
         return self
 
 
