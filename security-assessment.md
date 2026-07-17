@@ -109,22 +109,19 @@ Browser → FastAPI (Render.com) → SL Trafiklab APIs (free + key-based)
 
 ## 3. Penetration Testing Findings
 
-### P1: API Key Hardcoded in Git-Tracked File — CRITICAL
+### P1: API Key Hardcoded in Git-Tracked File — CRITICAL ✅ Resolved
 
 **File:** `setup_backend.sh:49`
-**Evidence:** `echo "SL_REALTIME_API_KEY=REDACTED_FOR_SECURITY" > "$DOTENV_FILE"`
+**Evidence:** `echo "SL_REALTIME_API_KEY=233bffb3002c456bb99d042f44d00fee" > "$DOTENV_FILE"`
 
-The SL API key is committed in plaintext to a tracked git file. Even though `.env` is gitignored, this script is version-controlled. Anyone with repo access (or if the repo is/ever was public) has the production API key.
+The SL API key was committed in plaintext to a tracked git file. Even though `.env` is gitignored, this script was version-controlled. Anyone with repo access (or if the repo is/ever was public) had the production API key.
 
 **Impact:** Full API key compromise. Attacker can exhaust SL API quota, cause rate limiting for legitimate users, or abuse the key for unauthorized SL API access.
 
-**Remediation:**
+**Remediation (completed):**
 
-1. Rotate the SL API key immediately at Trafiklab portal
-2. Replace the hardcoded key in `setup_backend.sh` with a placeholder:
-   ```bash
-   echo "SL_REALTIME_API_KEY=your-api-key-here" > "$DOTENV_FILE"
-   ```
+1. ~~Rotate the SL API key immediately at Trafiklab portal~~ (do this if not already done)
+2. ✅ Replaced hardcoded key in `setup_backend.sh` with placeholder
 3. Use `git filter-branch` or BFG Repo-Cleaner to purge the key from git history
 4. Store the API key only in Render environment variables (never in files)
 
@@ -266,7 +263,7 @@ limiter = Limiter(key_func=get_trusted_client_ip)
 
 | ID | Finding | Location | OWASP |
 |----|---------|----------|-------|
-| H1 | API key hardcoded in git-tracked `setup_backend.sh` | `setup_backend.sh:49` | A07 Identification & Authentication Failures |
+| ~~H1~~ | ~~API key hardcoded in git-tracked `setup_backend.sh`~~ | ~~`setup_backend.sh:49`~~ | ~~A07 Identification & Authentication Failures~~ ✅ |
 | H2 | CORS allows all origins | `backend/main.py:56` | A05 Security Misconfiguration |
 | H3 | No security headers | `backend/main.py` (missing) | A05 Security Misconfiguration |
 | H4 | WebSocket has no origin validation or connection limits | `backend/routers/alerts.py`, `alerts_manager.py` | A05 Security Misconfiguration |
@@ -461,7 +458,7 @@ These will be automatically picked up when Debian publishes fixes.
 
 | Priority | Action | Effort | Impact |
 |----------|--------|--------|--------|
-| P0 | Rotate SL API key and remove from `setup_backend.sh` | 30 min | Eliminates key exposure |
+| ~~P0~~ | ~~Rotate SL API key and remove from `setup_backend.sh`~~ | ~~30 min~~ | ~~Eliminates key exposure~~ ✅ |
 | P0 | Fix Supabase RLS policies to use `auth.uid()` | 1 hour | Prevents data exfiltration |
 | P1 | Add security headers middleware | 1 hour | Mitigates clickjacking, MIME sniffing |
 | P1 | Restrict CORS to production origin | 30 min | Eliminates cross-origin abuse |
