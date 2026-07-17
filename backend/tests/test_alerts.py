@@ -31,6 +31,9 @@ def _make_app():
 def _make_ws():
     ws = AsyncMock()
     ws.send_json = AsyncMock()
+    ws.headers = {}
+    ws.client = AsyncMock()
+    ws.client.host = "127.0.0.1"
     return ws
 
 
@@ -246,7 +249,7 @@ class TestAlertsPoller(unittest.IsolatedAsyncioTestCase):
 
         errors = _broadcasts_of_type(ws, "error")
         self.assertEqual(len(errors), 1)
-        self.assertIn("SL timeout", errors[0]["message"])
+        self.assertEqual(errors[0]["message"], "Failed to fetch alerts")
 
     async def test_tick_skips_when_no_subscribers(self):
         mgr = AlertsConnectionManager()
