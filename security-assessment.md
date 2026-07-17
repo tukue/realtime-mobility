@@ -184,62 +184,66 @@ async def security_headers(request: Request, call_next):
 
 Note: This must be placed **before** the `log_requests` middleware to ensure headers are added to all responses.
 
-### P4: WebSocket Origin Not Validated — HIGH
+### P4: WebSocket Origin Not Validated — HIGH ✅ Resolved
 
 **File:** `backend/routers/alerts.py:26-39`
 
 **Impact:** Cross-site WebSocket hijacking. A malicious website can open WebSocket connections to your backend on behalf of a visitor, potentially enabling data exfiltration or DoS via connection flooding.
 
-**Remediation:**
+**Remediation (completed):**
+
+1. ✅ Added origin validation — rejects connections from non-allowed origins
+2. ✅ Origin check uses the same `cors_origins` setting from `config.py`
+3. ✅ Returns close code 4003 for origin mismatches
 
 ```python
-@router.websocket("/ws/{site_id}")
-async def ws_alerts(websocket: WebSocket, site_id: str):
+# backend/routers/alerts.py — origin validation
+settings = get_settings()
+allowed_origins = settings.cors_origins
+
+if allowed_origins != ["*"]:
     origin = websocket.headers.get("origin", "")
-    allowed_origins = ["https://your-app.onrender.com", "http://localhost:5173"]
     if origin and origin not in allowed_origins:
+        await websocket.accept()
         await websocket.close(code=4003)
         return
-    # ... rest of handler
 ```
 
-### P5: WebSocket Connection Flood (DoS) — HIGH
+### P5: WebSocket Connection Flood (DoS) — HIGH ✅ Resolved
 
 **File:** `backend/services/alerts_manager.py`
 
 **Impact:** An attacker can open thousands of WebSocket connections with unique `site_id` values, causing the background poller to make thousands of SL API requests per tick, exhausting both your server resources and SL API rate limits.
 
-**Mitigations:**
+**Mitigations (completed):**
 
-1. Limit total concurrent WebSocket connections per IP
-2. Limit total unique `site_id` subscriptions
-3. Add a maximum subscriber cap
+1. ✅ Per-IP connection limit (5 connections)
+2. ✅ Total connection cap (500)
+3. ✅ Input validation on `site_id` (max 10 digits)
+4. ✅ Logs rejected connections for monitoring
 
 ```python
+# backend/services/alerts_manager.py — connection limits
 class AlertsConnectionManager:
     MAX_CONNECTIONS_PER_IP = 5
     MAX_TOTAL_CONNECTIONS = 500
 
-    async def connect(self, websocket: WebSocket, site_id: str) -> None:
+    async def connect(self, websocket: WebSocket, site_id: str) -> bool:
         client_ip = websocket.client.host if websocket.client else "unknown"
         total = sum(len(s) for s in self._connections.values())
 
         if total >= self.MAX_TOTAL_CONNECTIONS:
-            await websocket.close(code=4001)
-            return
+            return True
 
-        # Track per-IP connection count
         ip_count = sum(
             1 for sockets in self._connections.values()
             for ws in sockets
             if ws.client and ws.client.host == client_ip
         )
         if ip_count >= self.MAX_CONNECTIONS_PER_IP:
-            await websocket.close(code=4001)
-            return
+            return True
 
-        self._connections.setdefault(site_id, set()).add(websocket)
-        await websocket.send_json({"type": "connected", "site_id": site_id})
+        # ... accept connection
 ```
 
 ### P6: Rate Limiter IP Spoofing — MEDIUM
@@ -279,7 +283,7 @@ limiter = Limiter(key_func=get_trusted_client_ip)
 | ~~H1~~ | ~~API key hardcoded in git-tracked `setup_backend.sh`~~ | ~~`setup_backend.sh:49`~~ | ~~A07 Identification & Authentication Failures~~ ✅ |
 | ~~H2~~ | ~~CORS allows all origins~~ | ~~`backend/main.py:56`~~ | ~~A05 Security Misconfiguration~~ ✅ |
 | H3 | No security headers | `backend/main.py` (missing) | A05 Security Misconfiguration |
-| H4 | WebSocket has no origin validation or connection limits | `backend/routers/alerts.py`, `alerts_manager.py` | A05 Security Misconfiguration |
+| ~~H4~~ | ~~WebSocket has no origin validation or connection limits~~ | ~~`backend/routers/alerts.py`, `alerts_manager.py`~~ | ~~A05 Security Misconfiguration~~ ✅ |
 
 ### MEDIUM
 
@@ -296,7 +300,7 @@ limiter = Limiter(key_func=get_trusted_client_ip)
 
 | ID | Finding | Location | OWASP |
 |----|---------|----------|-------|
-| L1 | No input length validation on WebSocket site_id | `routers/alerts.py:27` | A03 Injection |
+| ~~L1~~ | ~~No input length validation on WebSocket site_id~~ | ~~`routers/alerts.py:27`~~ | ~~A03 Injection~~ ✅ |
 | L2 | Exception handler logs full stack traces to stdout | `main.py:100` | A09 Security Logging & Monitoring Failures |
 | L3 | No health check rate limiting | `main.py:121` | A04 Insecure Design |
 | L4 | SPA fallback serves all non-API paths — potential for cache poisoning | `main.py:145` | A05 Security Misconfiguration |
@@ -480,7 +484,7 @@ These will be automatically picked up when Debian publishes fixes.
 
 | Priority | Action | Effort | Impact |
 |----------|--------|--------|--------|
-| P1 | Add WebSocket origin validation and connection limits | 2 hours | Prevents WS abuse |
+| ~~P1~~ | ~~Add WebSocket origin validation and connection limits~~ | ~~2 hours~~ | ~~Prevents WS abuse~~ ✅ |
 | ~~P2~~ | ~~Re-enable Trivy in CI pipeline~~ | ~~1 hour~~ | ~~Catches container CVEs~~ ✅ |
 | P2 | Add `npm audit` and `pip-audit` to CI | 1 hour | Catches dependency CVEs |
 | P2 | Add structured logging with `structlog` | 2 hours | Enables log analysis |

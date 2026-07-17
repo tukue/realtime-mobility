@@ -17,14 +17,40 @@ from services.alerts_service import fetch_alerts_for_site
 class AlertsConnectionManager:
     """Tracks active WebSocket connections grouped by site_id."""
 
+    MAX_CONNECTIONS_PER_IP = 5
+    MAX_TOTAL_CONNECTIONS = 500
+
     def __init__(self) -> None:
         self._connections: dict[str, set[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, site_id: str) -> None:
+    async def connect(self, websocket: WebSocket, site_id: str) -> bool:
+        """Connect a WebSocket. Returns True if rejected (caller should close)."""
+        client_ip = websocket.client.host if websocket.client else "unknown"
+        total = sum(len(s) for s in self._connections.values())
+
+        if total >= self.MAX_TOTAL_CONNECTIONS:
+            logger.warning("WS rejected: max total connections (%d)", self.MAX_TOTAL_CONNECTIONS)
+            return True
+
+        ip_count = sum(
+            1
+            for sockets in self._connections.values()
+            for ws in sockets
+            if ws.client and ws.client.host == client_ip
+        )
+        if ip_count >= self.MAX_CONNECTIONS_PER_IP:
+            logger.warning(
+                "WS rejected: client %s hit per-IP limit (%d)",
+                client_ip,
+                self.MAX_CONNECTIONS_PER_IP,
+            )
+            return True
+
         if getattr(websocket, "application_state", None) != WebSocketState.CONNECTED:
             await websocket.accept()
         self._connections.setdefault(site_id, set()).add(websocket)
         await websocket.send_json({"type": "connected", "site_id": site_id})
+        return False
 
     async def disconnect(self, websocket: WebSocket, site_id: str) -> None:
         sockets = self._connections.get(site_id, set())

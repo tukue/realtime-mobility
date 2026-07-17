@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
 from httpx import AsyncClient
 
 from services.alerts_manager import manager
 from services.alerts_service import fetch_alerts_for_site
+from services.config import get_settings
 from services.dependencies import get_http_client, limiter
 from services.schemas import AlertsResponse
 
 router = APIRouter()
+
+SITE_ID_PATTERN = re.compile(r"^\d{1,10}$")
 
 
 @router.get("/", response_model=AlertsResponse)
@@ -26,14 +31,29 @@ async def get_alerts(
 @router.websocket("/ws/{site_id}")
 async def ws_alerts(websocket: WebSocket, site_id: str):
     """WebSocket endpoint — pushes alert updates to the client."""
+    settings = get_settings()
+    allowed_origins = settings.cors_origins
+
+    if allowed_origins != ["*"]:
+        origin = websocket.headers.get("origin", "")
+        if origin and origin not in allowed_origins:
+            await websocket.accept()
+            await websocket.close(code=4003)
+            return
+
     await websocket.accept()
-    if not site_id or not site_id.strip():
+
+    if not site_id or not SITE_ID_PATTERN.match(site_id.strip()):
         await websocket.close(code=4000)
         return
 
-    await manager.connect(websocket, site_id)
+    rejected = await manager.connect(websocket, site_id)
+    if rejected:
+        await websocket.close(code=4001)
+        return
+
     try:
         while True:
-            await websocket.receive_text()  # keep connection alive
+            await websocket.receive_text()
     except WebSocketDisconnect:
         await manager.disconnect(websocket, site_id)
