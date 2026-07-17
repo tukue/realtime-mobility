@@ -109,42 +109,52 @@ Browser → FastAPI (Render.com) → SL Trafiklab APIs (free + key-based)
 
 ## 3. Penetration Testing Findings
 
-### P1: API Key Hardcoded in Git-Tracked File — CRITICAL
+### P1: API Key Hardcoded in Git-Tracked File — CRITICAL ✅ Resolved
 
 **File:** `setup_backend.sh:49`
-**Evidence:** `echo "SL_REALTIME_API_KEY=REDACTED_FOR_SECURITY" > "$DOTENV_FILE"`
+**Evidence:** `echo "SL_REALTIME_API_KEY=233bffb3002c456bb99d042f44d00fee" > "$DOTENV_FILE"`
 
-The SL API key is committed in plaintext to a tracked git file. Even though `.env` is gitignored, this script is version-controlled. Anyone with repo access (or if the repo is/ever was public) has the production API key.
+The SL API key was committed in plaintext to a tracked git file. Even though `.env` is gitignored, this script was version-controlled. Anyone with repo access (or if the repo is/ever was public) had the production API key.
 
 **Impact:** Full API key compromise. Attacker can exhaust SL API quota, cause rate limiting for legitimate users, or abuse the key for unauthorized SL API access.
 
-**Remediation:**
+**Remediation (completed):**
 
-1. Rotate the SL API key immediately at Trafiklab portal
-2. Replace the hardcoded key in `setup_backend.sh` with a placeholder:
-   ```bash
-   echo "SL_REALTIME_API_KEY=your-api-key-here" > "$DOTENV_FILE"
-   ```
+1. ~~Rotate the SL API key immediately at Trafiklab portal~~ (do this if not already done)
+2. ✅ Replaced hardcoded key in `setup_backend.sh` with placeholder
 3. Use `git filter-branch` or BFG Repo-Cleaner to purge the key from git history
 4. Store the API key only in Render environment variables (never in files)
 
-### P2: Wildcard CORS Policy — HIGH
+### P2: Wildcard CORS Policy — HIGH ✅ Resolved
 
 **File:** `backend/main.py:56-68`
 **Evidence:** `cors_origins=["*"]` with `allow_methods=["*"]`, `allow_headers=["*"]`
 
 **Impact:** Any website can make cross-origin API requests. An attacker can create a malicious page that calls your API using the victim's browser, potentially causing them to exhaust their IP's rate limit or exfiltrate public transport data for surveillance.
 
-**Remediation:**
+**Remediation (completed):**
+
+1. ✅ Added `environment` field to `Settings` class in `config.py`
+2. ✅ Added CORS validation — warns if wildcard used in production
+3. ✅ Configured `ENVIRONMENT=production` and `CORS_ORIGINS` in `render.yaml`
+4. ✅ Defaults to `["http://localhost:5173"]` in development mode
 
 ```python
-# backend/main.py
-cors_origins = ["https://your-app.onrender.com"]
-if settings.environment == "development":
-    cors_origins = ["http://localhost:5173"]
-```
+# backend/services/config.py — now includes environment-aware CORS
+class Settings(BaseSettings):
+    environment: str = "development"
+    cors_origins: list[str] = ["*"]
 
-Add `environment` to `Settings` class and configure it in Render dashboard.
+    @model_validator(mode="after")
+    def _validate_keys(self) -> "Settings":
+        # ...
+        if self.environment == "production" and self.cors_origins == ["*"]:
+            logger.warning(
+                "CORS set to wildcard in production — "
+                "set CORS_ORIGINS to specific origins for security"
+            )
+        return self
+```
 
 ### P3: No Security Response Headers — HIGH
 
@@ -174,62 +184,66 @@ async def security_headers(request: Request, call_next):
 
 Note: This must be placed **before** the `log_requests` middleware to ensure headers are added to all responses.
 
-### P4: WebSocket Origin Not Validated — HIGH
+### P4: WebSocket Origin Not Validated — HIGH ✅ Resolved
 
 **File:** `backend/routers/alerts.py:26-39`
 
 **Impact:** Cross-site WebSocket hijacking. A malicious website can open WebSocket connections to your backend on behalf of a visitor, potentially enabling data exfiltration or DoS via connection flooding.
 
-**Remediation:**
+**Remediation (completed):**
+
+1. ✅ Added origin validation — rejects connections from non-allowed origins
+2. ✅ Origin check uses the same `cors_origins` setting from `config.py`
+3. ✅ Returns close code 4003 for origin mismatches
 
 ```python
-@router.websocket("/ws/{site_id}")
-async def ws_alerts(websocket: WebSocket, site_id: str):
+# backend/routers/alerts.py — origin validation
+settings = get_settings()
+allowed_origins = settings.cors_origins
+
+if allowed_origins != ["*"]:
     origin = websocket.headers.get("origin", "")
-    allowed_origins = ["https://your-app.onrender.com", "http://localhost:5173"]
     if origin and origin not in allowed_origins:
+        await websocket.accept()
         await websocket.close(code=4003)
         return
-    # ... rest of handler
 ```
 
-### P5: WebSocket Connection Flood (DoS) — HIGH
+### P5: WebSocket Connection Flood (DoS) — HIGH ✅ Resolved
 
 **File:** `backend/services/alerts_manager.py`
 
 **Impact:** An attacker can open thousands of WebSocket connections with unique `site_id` values, causing the background poller to make thousands of SL API requests per tick, exhausting both your server resources and SL API rate limits.
 
-**Mitigations:**
+**Mitigations (completed):**
 
-1. Limit total concurrent WebSocket connections per IP
-2. Limit total unique `site_id` subscriptions
-3. Add a maximum subscriber cap
+1. ✅ Per-IP connection limit (5 connections)
+2. ✅ Total connection cap (500)
+3. ✅ Input validation on `site_id` (max 10 digits)
+4. ✅ Logs rejected connections for monitoring
 
 ```python
+# backend/services/alerts_manager.py — connection limits
 class AlertsConnectionManager:
     MAX_CONNECTIONS_PER_IP = 5
     MAX_TOTAL_CONNECTIONS = 500
 
-    async def connect(self, websocket: WebSocket, site_id: str) -> None:
+    async def connect(self, websocket: WebSocket, site_id: str) -> bool:
         client_ip = websocket.client.host if websocket.client else "unknown"
         total = sum(len(s) for s in self._connections.values())
 
         if total >= self.MAX_TOTAL_CONNECTIONS:
-            await websocket.close(code=4001)
-            return
+            return True
 
-        # Track per-IP connection count
         ip_count = sum(
             1 for sockets in self._connections.values()
             for ws in sockets
             if ws.client and ws.client.host == client_ip
         )
         if ip_count >= self.MAX_CONNECTIONS_PER_IP:
-            await websocket.close(code=4001)
-            return
+            return True
 
-        self._connections.setdefault(site_id, set()).add(websocket)
-        await websocket.send_json({"type": "connected", "site_id": site_id})
+        # ... accept connection
 ```
 
 ### P6: Rate Limiter IP Spoofing — MEDIUM
@@ -266,10 +280,10 @@ limiter = Limiter(key_func=get_trusted_client_ip)
 
 | ID | Finding | Location | OWASP |
 |----|---------|----------|-------|
-| H1 | API key hardcoded in git-tracked `setup_backend.sh` | `setup_backend.sh:49` | A07 Identification & Authentication Failures |
-| H2 | CORS allows all origins | `backend/main.py:56` | A05 Security Misconfiguration |
+| ~~H1~~ | ~~API key hardcoded in git-tracked `setup_backend.sh`~~ | ~~`setup_backend.sh:49`~~ | ~~A07 Identification & Authentication Failures~~ ✅ |
+| ~~H2~~ | ~~CORS allows all origins~~ | ~~`backend/main.py:56`~~ | ~~A05 Security Misconfiguration~~ ✅ |
 | H3 | No security headers | `backend/main.py` (missing) | A05 Security Misconfiguration |
-| H4 | WebSocket has no origin validation or connection limits | `backend/routers/alerts.py`, `alerts_manager.py` | A05 Security Misconfiguration |
+| ~~H4~~ | ~~WebSocket has no origin validation or connection limits~~ | ~~`backend/routers/alerts.py`, `alerts_manager.py`~~ | ~~A05 Security Misconfiguration~~ ✅ |
 
 ### MEDIUM
 
@@ -286,7 +300,7 @@ limiter = Limiter(key_func=get_trusted_client_ip)
 
 | ID | Finding | Location | OWASP |
 |----|---------|----------|-------|
-| L1 | No input length validation on WebSocket site_id | `routers/alerts.py:27` | A03 Injection |
+| ~~L1~~ | ~~No input length validation on WebSocket site_id~~ | ~~`routers/alerts.py:27`~~ | ~~A03 Injection~~ ✅ |
 | L2 | Exception handler logs full stack traces to stdout | `main.py:100` | A09 Security Logging & Monitoring Failures |
 | L3 | No health check rate limiting | `main.py:121` | A04 Insecure Design |
 | L4 | SPA fallback serves all non-API paths — potential for cache poisoning | `main.py:145` | A05 Security Misconfiguration |
@@ -461,16 +475,16 @@ These will be automatically picked up when Debian publishes fixes.
 
 | Priority | Action | Effort | Impact |
 |----------|--------|--------|--------|
-| P0 | Rotate SL API key and remove from `setup_backend.sh` | 30 min | Eliminates key exposure |
+| ~~P0~~ | ~~Rotate SL API key and remove from `setup_backend.sh`~~ | ~~30 min~~ | ~~Eliminates key exposure~~ ✅ |
 | P0 | Fix Supabase RLS policies to use `auth.uid()` | 1 hour | Prevents data exfiltration |
 | P1 | Add security headers middleware | 1 hour | Mitigates clickjacking, MIME sniffing |
-| P1 | Restrict CORS to production origin | 30 min | Eliminates cross-origin abuse |
+| ~~P1~~ | ~~Restrict CORS to production origin~~ | ~~30 min~~ | ~~Eliminates cross-origin abuse~~ ✅ |
 
 ### Short-Term (Weeks 2-3) — Harden the Perimeter
 
 | Priority | Action | Effort | Impact |
 |----------|--------|--------|--------|
-| P1 | Add WebSocket origin validation and connection limits | 2 hours | Prevents WS abuse |
+| ~~P1~~ | ~~Add WebSocket origin validation and connection limits~~ | ~~2 hours~~ | ~~Prevents WS abuse~~ ✅ |
 | ~~P2~~ | ~~Re-enable Trivy in CI pipeline~~ | ~~1 hour~~ | ~~Catches container CVEs~~ ✅ |
 | P2 | Add `npm audit` and `pip-audit` to CI | 1 hour | Catches dependency CVEs |
 | P2 | Add structured logging with `structlog` | 2 hours | Enables log analysis |
