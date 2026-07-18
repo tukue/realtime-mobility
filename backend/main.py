@@ -28,18 +28,20 @@ class SensitiveDataFilter(logging.Filter):
     """Redact API keys and secrets from log output."""
 
     PATTERNS = [
-        (re.compile(r"(key=)([A-Za-z0-9]{20,})"), r"\1***REDACTED***"),
-        (re.compile(r"(api_key[=:]\s*)([A-Za-z0-9]{20,})"), r"\1***REDACTED***"),
-        (re.compile(r"(SL_REALTIME_API_KEY[=:]\s*)([A-Za-z0-9]{20,})"), r"\1***REDACTED***"),
-        (re.compile(r"(SL_SITUATION_API_KEY[=:]\s*)([A-Za-z0-9]{20,})"), r"\1***REDACTED***"),
+        (re.compile(r"(key=)([\w\-]{20,})"), r"\1***REDACTED***"),
+        (re.compile(r"(api_key[=:]\s*)([\w\-]{20,})"), r"\1***REDACTED***"),
+        (re.compile(r"(SL_REALTIME_API_KEY[=:]\s*)([\w\-]{20,})"), r"\1***REDACTED***"),
+        (re.compile(r"(SL_SITUATION_API_KEY[=:]\s*)([\w\-]{20,})"), r"\1***REDACTED***"),
     ]
 
     def filter(self, record: logging.LogRecord) -> bool:
-        msg = record.getMessage()
+        if record.args:
+            record.msg = record.getMessage()
+            record.args = ()
+        msg = str(record.msg)
         for pattern, replacement in self.PATTERNS:
             msg = pattern.sub(replacement, msg)
         record.msg = msg
-        record.args = ()
         return True
 
 
