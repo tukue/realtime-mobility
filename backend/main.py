@@ -78,7 +78,7 @@ async def security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; connect-src 'self' wss: ws: https:; "
+        "font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; "
         "img-src 'self' data:; frame-ancestors 'none'"
     )
     return response
