@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 from typing import Any, Iterable, Optional
 
@@ -8,6 +9,8 @@ import httpx
 
 from services.config import get_settings
 from services.exceptions import SLApiError
+
+logger = logging.getLogger(__name__)
 from services.sl_config import (
     get_sl_free_departures_url,
     get_sl_free_deviations_url,
@@ -55,12 +58,14 @@ async def _fetch_json(
         except httpx.ConnectError as exc:
             raise SLApiError("Could not reach the SL API host. Check network or DNS access.", 503) from exc
         except httpx.HTTPStatusError as exc:
+            logger.error("SL API returned HTTP %d for %s", exc.response.status_code, url)
             raise SLApiError(
-                f"SL API returned HTTP {exc.response.status_code} for {url}.",
+                f"SL API returned unexpected status {exc.response.status_code}.",
                 status_code=502,
             ) from exc
         except httpx.RequestError as exc:
-            raise SLApiError(f"SL request failed: {exc}", status_code=502) from exc
+            logger.error("SL request failed for %s: %s", url, exc)
+            raise SLApiError("SL request failed.", status_code=502) from exc
 
     try:
         async with httpx.AsyncClient() as session:
@@ -72,12 +77,14 @@ async def _fetch_json(
     except httpx.ConnectError as exc:
         raise SLApiError("Could not reach the SL API host. Check network or DNS access.", 503) from exc
     except httpx.HTTPStatusError as exc:
+        logger.error("SL API returned HTTP %d for %s", exc.response.status_code, url)
         raise SLApiError(
-            f"SL API returned HTTP {exc.response.status_code} for {url}.",
+            f"SL API returned unexpected status {exc.response.status_code}.",
             status_code=502,
         ) from exc
     except httpx.RequestError as exc:
-        raise SLApiError(f"SL request failed: {exc}", status_code=502) from exc
+        logger.error("SL request failed for %s: %s", url, exc)
+        raise SLApiError("SL request failed.", status_code=502) from exc
 
 
 async def search_stops(
@@ -286,8 +293,13 @@ async def fetch_realtime_departures(
     data = await _fetch_json(get_sl_realtime_url(), params, client=client)
 
     if data.get("StatusCode") not in (None, 0):
+        logger.error(
+            "SL realtime API StatusCode %s: %s",
+            data.get("StatusCode"),
+            data.get("Message", "Unknown error"),
+        )
         raise SLApiError(
-            f"SL realtime API returned StatusCode {data.get('StatusCode')}: {data.get('Message', 'Unknown error')}",
+            "SL realtime API returned an error.",
             status_code=502,
         )
 
