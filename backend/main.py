@@ -69,16 +69,17 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start = time.time()
+async def security_headers(request: Request, call_next):
     response = await call_next(request)
-    duration_ms = (time.time() - start) * 1000
-    logger.info(
-        "%s %s %s (%.0fms)",
-        request.method,
-        request.url.path,
-        response.status_code,
-        duration_ms,
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(self)"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; "
+        "img-src 'self' data:; frame-ancestors 'none'"
     )
     return response
 
