@@ -11,13 +11,13 @@
 
   2. Security
     - Enable RLS on `favorite_stops` table
-    - Add policy for users to read their own favorites
-    - Add policy for users to insert their own favorites
-    - Add policy for users to delete their own favorites
+    - All policies deny by default (no auth system exists yet)
+    - Favorites are stored in localStorage until auth is implemented
 
   3. Notes
-    - This table allows users to save their frequently used stops for quick access
-    - Each user can only access their own favorites
+    - RLS policies use deny-all until auth.uid() is available
+    - The app currently uses localStorage for favorites (useLocalFavorites hook)
+    - To enable cloud sync: implement Supabase Auth, then replace policies with auth.uid() checks
 */
 
 CREATE TABLE IF NOT EXISTS favorite_stops (
@@ -30,17 +30,17 @@ CREATE TABLE IF NOT EXISTS favorite_stops (
 
 ALTER TABLE favorite_stops ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own favorites"
+CREATE POLICY "Deny all select"
   ON favorite_stops FOR SELECT
-  USING (true);
+  USING (false);
 
-CREATE POLICY "Users can insert own favorites"
+CREATE POLICY "Deny all insert"
   ON favorite_stops FOR INSERT
-  WITH CHECK (true);
+  WITH CHECK (false);
 
-CREATE POLICY "Users can delete own favorites"
+CREATE POLICY "Deny all delete"
   ON favorite_stops FOR DELETE
-  USING (true);
+  USING (false);
 
 CREATE INDEX IF NOT EXISTS idx_favorite_stops_user_id ON favorite_stops(user_id);
 CREATE INDEX IF NOT EXISTS idx_favorite_stops_site_id ON favorite_stops(site_id);
