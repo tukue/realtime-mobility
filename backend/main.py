@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,6 +22,30 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / "dist"
+
+
+class SensitiveDataFilter(logging.Filter):
+    """Redact API keys and secrets from log output."""
+
+    PATTERNS = [
+        (re.compile(r"(key=)([\w\-]{20,})"), r"\1***REDACTED***"),
+        (re.compile(r"(api_key[=:]\s*)([\w\-]{20,})"), r"\1***REDACTED***"),
+        (re.compile(r"(SL_REALTIME_API_KEY[=:]\s*)([\w\-]{20,})"), r"\1***REDACTED***"),
+        (re.compile(r"(SL_SITUATION_API_KEY[=:]\s*)([\w\-]{20,})"), r"\1***REDACTED***"),
+    ]
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.args:
+            record.msg = record.getMessage()
+            record.args = ()
+        msg = str(record.msg)
+        for pattern, replacement in self.PATTERNS:
+            msg = pattern.sub(replacement, msg)
+        record.msg = msg
+        return True
+
+
+logging.getLogger().addFilter(SensitiveDataFilter())
 
 
 @asynccontextmanager

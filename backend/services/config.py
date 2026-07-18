@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+_IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
 
 
 class Settings(BaseSettings):
@@ -26,7 +28,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
 
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env",
+        env_file=None if _IS_PRODUCTION else BASE_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
