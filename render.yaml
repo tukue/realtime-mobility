@@ -8,3 +8,5 @@ services:
         value: production
       - key: CORS_ORIGINS
         value: '["https://realtime-mobility.onrender.com"]'
+      - key: TRUST_PROXY_HEADERS
+        value: 'true'
