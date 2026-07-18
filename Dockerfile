@@ -25,6 +25,11 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend /app/backend
 COPY --from=frontend-builder /app/dist /app/dist
 
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && chown -R appuser:appuser /app
+
+USER appuser
+
 ENV PYTHONPATH=/app/backend
 
 WORKDIR /app/backend
