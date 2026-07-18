@@ -2,13 +2,8 @@ import os
 import unittest
 from unittest.mock import patch
 
+from services.config import get_settings
 from services.sl_config import (
-    DEFAULT_SL_FREE_DEPARTURES_URL,
-    DEFAULT_SL_FREE_DEVIATIONS_URL,
-    DEFAULT_SL_FREE_SITES_URL,
-    DEFAULT_SL_REALTIME_URL,
-    DEFAULT_SL_SITUATION_URL,
-    DEFAULT_SL_TYPEAHEAD_URL,
     get_sl_free_departures_url,
     get_sl_free_deviations_url,
     get_sl_free_sites_url,
@@ -19,15 +14,23 @@ from services.sl_config import (
 
 
 class SlConfigTests(unittest.TestCase):
+    def setUp(self):
+        get_settings.cache_clear()
+
+    def tearDown(self):
+        get_settings.cache_clear()
+
     def test_defaults_are_used_when_env_is_missing(self):
-        self.assertEqual(get_sl_typeahead_url(), DEFAULT_SL_TYPEAHEAD_URL)
-        self.assertEqual(get_sl_realtime_url(), DEFAULT_SL_REALTIME_URL)
-        self.assertEqual(get_sl_situation_url(), DEFAULT_SL_SITUATION_URL)
-        self.assertEqual(get_sl_free_sites_url(), DEFAULT_SL_FREE_SITES_URL)
-        self.assertEqual(get_sl_free_departures_url(), DEFAULT_SL_FREE_DEPARTURES_URL)
-        self.assertEqual(get_sl_free_deviations_url(), DEFAULT_SL_FREE_DEVIATIONS_URL)
+        settings = get_settings()
+        self.assertEqual(get_sl_typeahead_url(), settings.sl_typeahead_url)
+        self.assertEqual(get_sl_realtime_url(), settings.sl_realtime_url)
+        self.assertEqual(get_sl_situation_url(), settings.sl_situation_url)
+        self.assertEqual(get_sl_free_sites_url(), settings.sl_free_sites_url)
+        self.assertEqual(get_sl_free_departures_url(), settings.sl_free_departures_url)
+        self.assertEqual(get_sl_free_deviations_url(), settings.sl_free_deviations_url)
 
     def test_env_vars_override_defaults(self):
+        get_settings.cache_clear()
         with patch.dict(
             os.environ,
             {

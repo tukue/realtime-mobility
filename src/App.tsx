@@ -3,7 +3,9 @@ import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
 import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
+
 import { useMediaQuery } from './hooks/useMediaQuery';
+import { useLocalFavorites } from './hooks/useLocalFavorites';
 import { Site } from './types';
 
 const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
@@ -43,6 +45,9 @@ function App() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const { favorites, isFavorite, toggleFavorite, clearAll } = useLocalFavorites();
+  const backendPill =
+    backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger;
 
   useEffect(() => {
     setRecentSites(loadRecentSites());
@@ -156,18 +161,16 @@ function App() {
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
-          <h1 style={styles.title}>Find your stop, then check the live buses.</h1>
+          <h1 style={styles.title}>Find your stop, then check nearby stations</h1>
           <p style={styles.subtitle}>
-            Search a stop or station, save the ones you use often, or use nearby buses to jump straight into the closest live boards.
+            Search a stop or station, save the ones you use often, or use nearby stops to jump straight into the closest live boards.
           </p>
 
           <div style={styles.pills}>
             <span style={styles.pill}>All transport modes</span>
             <span style={styles.pill}>30-second refresh</span>
             <span style={styles.pillAccent}>Recent stops saved locally</span>
-            <span style={backendStatus === 'online' ? styles.pillSuccess : backendStatus === 'checking' ? styles.pillNeutral : styles.pillDanger}>
-              Backend {backendStatus}
-            </span>
+            <span style={backendPill}>Backend {backendStatus}</span>
           </div>
         </header>
 
@@ -198,11 +201,11 @@ function App() {
                 style={styles.startInput}
               />
               <div style={styles.helperText}>
-                Use a typed starting point or tap the location button to rank the closest stops automatically.
+                Use a typed starting point or tap <span style={styles.helperStrong}>Use my location</span> to rank the closest stops automatically.
               </div>
               <div style={styles.locationActions}>
                 <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
-                  {geoLoading ? 'Locating...' : geoLocation ? 'Refresh nearby buses' : 'Find nearby buses'}
+                  {geoLoading ? 'Locating...' : geoLocation ? 'Use my location again' : 'Use my location'}
                 </button>
                 {geoLocation && (
                   <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
@@ -246,15 +249,25 @@ function App() {
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
-              <div style={styles.cardLabel}>Saved stops</div>
-              <FavoritesList onSiteSelect={handleSiteSelect} />
+              <div style={styles.cardHeader}>
+                <div style={styles.cardLabel}>Saved stops</div>
+                {favorites.length > 0 && (
+                  <button type="button" onClick={clearAll} style={styles.clearFavoritesButton}>
+                    Unpin
+                  </button>
+                )}
+              </div>
+              <FavoritesList
+                favorites={favorites}
+                onSiteSelect={handleSiteSelect}
+              />
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
               <div style={styles.cardLabel}>How it works</div>
               <ol style={styles.steps}>
                 <li>Search for a stop or enter a starting position.</li>
-                <li>Use nearby buses to jump to the closest live stop boards.</li>
+                <li>Use nearby stops to jump to the closest live boards.</li>
                 <li>Switch modes or refresh the board while you travel.</li>
               </ol>
             </div>
@@ -262,16 +275,21 @@ function App() {
 
           <section style={styles.boardArea}>
             {selectedSite ? (
-              <StopBoard site={selectedSite} startingLocation={startingLocation} />
+              <StopBoard
+                site={selectedSite}
+                startingLocation={startingLocation}
+                isFavorite={isFavorite(selectedSite.SiteId)}
+                onToggleFavorite={toggleFavorite}
+              />
             ) : (
               <div style={isMobile ? { ...styles.emptyState, minHeight: 'auto', padding: '22px' } : styles.emptyState}>
                 <div style={styles.emptyBadge}>Ready when you are</div>
-                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live buses.</h2>
+                <h2 style={styles.emptyTitle}>Select a stop or nearby board to see live vehicles.</h2>
                 <p style={styles.emptyText}>
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Try a central stop like Skanstull, Odenplan, or Stureplan, or use nearby buses to jump in faster.
+                  Use nearby stops to travel.
                 </div>
               </div>
             )}
@@ -317,6 +335,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   header: {
     padding: '28px 0 26px',
+    maxWidth: '920px',
   },
   kicker: {
     display: 'inline-flex',
@@ -409,8 +428,8 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     padding: '18px',
     borderRadius: '24px',
-    background: 'var(--panel)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, rgba(11, 22, 39, 0.94) 0%, rgba(8, 18, 32, 0.88) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     boxShadow: '0 24px 70px rgba(0, 0, 0, 0.25)',
     backdropFilter: 'blur(18px)',
   },
@@ -420,7 +439,28 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--muted)',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '12px',
+  },
+  clearFavoritesButton: {
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    color: 'var(--muted)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid var(--border)',
+    borderRadius: '999px',
+    padding: '4px 10px',
+    cursor: 'pointer',
+  },
+  cardLead: {
+    marginBottom: '14px',
+    color: 'var(--muted)',
+    fontSize: '0.92rem',
+    lineHeight: 1.5,
   },
   inlineLabel: {
     display: 'block',
@@ -445,6 +485,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.88rem',
     lineHeight: 1.5,
+  },
+  helperStrong: {
+    color: 'var(--text)',
+    fontWeight: 800,
   },
   locationActions: {
     display: 'flex',
@@ -534,8 +578,8 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '520px',
     padding: '28px',
     borderRadius: '28px',
-    background: 'linear-gradient(180deg, rgba(14, 27, 48, 0.94) 0%, rgba(8, 15, 27, 0.96) 100%)',
-    border: '1px solid var(--border)',
+    background: 'linear-gradient(180deg, rgba(12, 24, 42, 0.96) 0%, rgba(7, 14, 25, 0.98) 100%)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     boxShadow: '0 30px 90px rgba(0, 0, 0, 0.28)',
     display: 'grid',
     alignContent: 'center',

@@ -1,1 +1,1 @@
-"""FastAPI routers for the Stockholm transit API."""
+"""FastAPI routers for the Stockholm travel planner API."""

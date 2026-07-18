@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: realtime-mobility
+    runtime: docker
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: '["https://realtime-mobility.onrender.com"]'

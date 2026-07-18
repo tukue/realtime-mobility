@@ -1,189 +1,317 @@
-# Stockholm transportation planner learning app
+# Stockholm Travel Planner
 
-A real-time web application for tracking bus, train, metro, tram, and ship arrivals in Stockholm using SL (Storstockholms Lokaltrafik) APIs.
+**Real-time public transport information for Stockholm — live departure boards, nearby stops, service alerts, and journey planning across all SL transport modes.**
 
-## Product planning (MVP)
+A full-stack application connecting Stockholm's public transit data (SL Trafiklab APIs) to a responsive dark-theme dashboard. Built with React + TypeScript on the frontend and Python FastAPI on the backend, containerized with Docker, and deployed via CI/CD.
 
-### 1) Target transit agencies with open realtime APIs
+## System Architecture
 
-For MVP validation, we will support **Stockholm-focused providers only** so the scope stays aligned to this app:
+```mermaid
+graph TB
+    subgraph Client["Client Layer (Browser)"]
+        UI["React SPA<br/>Vite + TypeScript"]
+        STORE["localStorage<br/>Favorites · Recents · Cache"]
+    end
 
-1. **SL (Storstockholms Lokaltrafik) via Trafiklab APIs**
-   - **Vehicle positions:** realtime vehicle monitoring where available per mode/feed
-   - **Stop arrivals/departures:** realtime departures (e.g., SL Realtidsinformation feeds)
-   - **Service alerts:** traffic/disruption information from SL/Trafiklab datasets
-   - Why this is a fit: primary operator for metro, commuter rail, buses, trams, and local ferries in Stockholm.
+    subgraph Server["Server Layer (FastAPI / Python)"]
+        API["REST API<br/>/api/* endpoints"]
+        WS["WebSocket Server<br/>/api/alerts/ws/{id}"]
+        POLLER["Background Alert Poller<br/>asyncio"]
+        SL_CLIENT["SL API Client<br/>httpx + Pydantic"]
+        GEO["Geospatial Engine<br/>Haversine distance"]
+    end
 
-2. **Trafikverket (Swedish Transport Administration) traffic/disruption APIs — Stockholm subset**
-   - **Vehicle positions:** not primary source for local transit vehicles (used selectively when relevant)
-   - **Stop arrivals/departures:** complementary station traffic information for regional rail context
-   - **Service alerts:** disruption/traffic situation data relevant to Stockholm area operations
-   - Why this is a fit: broad official disruption context that improves alert coverage while remaining Sweden/Stockholm scoped.
+    subgraph External["External Layer"]
+        SL_APIS["SL Trafiklab APIs<br/>Typeahead · Realtime · Deviations · Journey Planner"]
+        SUPABASE["Supabase PostgreSQL<br/>Cloud favorites (optional)"]
+    end
 
-> Implementation note: launch with SL realtime departures + stop search first, then add Stockholm-scoped Trafikverket disruption context as a secondary data source.
+    UI -- "HTTP REST" --> API
+    UI -- "WebSocket" --> WS
+    UI --> STORE
+    UI -. "optional" .-> SUPABASE
 
-### 2) MVP user stories
+    API --> SL_CLIENT
+    API --> GEO
+    WS --> POLLER
+    POLLER --> SL_CLIENT
+    SL_CLIENT --> SL_APIS
+```
 
-1. **Stop/station departures**
-   - As a rider, I can search a stop/station and see next departures.
-   - Acceptance criteria:
-     - Search returns relevant stops/stations by name within 1 interaction.
-     - Departure board shows route, destination/headsign, scheduled time, realtime estimate, and delay indicator.
-     - Board auto-refreshes (target interval: 15–30s) and clearly shows last-updated timestamp.
+**Data flow**: The React SPA communicates with the FastAPI backend via REST for departures, stop search, nearby stops, and journey planning. Live service alerts are pushed from the backend to the browser through a persistent WebSocket connection, fed by a background asyncio poller that fetches only for stops with active subscribers. The backend translates between SL's raw API responses and the frontend's expected schema, handling both key-based and free API modes transparently.
 
-2. **Live vehicle map**
-   - As a rider, I can view live vehicle positions on a map.
-   - Acceptance criteria:
-     - Map displays active vehicles for selected route/operator within Stockholm coverage.
-     - Vehicle markers include line/route and last report time.
-     - Rider can filter by route and transport mode.
+---
 
-3. **Favorites**
-   - As a rider, I can favorite stops/routes.
-   - Acceptance criteria:
-     - Rider can save and remove favorites in one tap/click.
-     - Favorites persist across sessions.
-     - Favorites are accessible from the home/departure view without re-searching.
+## Architecture
 
-### 3) Non-goals for v1
+```mermaid
+graph TB
+    subgraph Development["Development"]
+        DEV["Developer<br/>git push"]
+    end
 
-To keep scope tight, the following are explicitly out of scope for v1:
+    subgraph GitHub["GitHub"]
+        CI["CI/CD Pipeline<br/>GitHub Actions"]
+        BUILD["Build Frontend<br/>npm ci + build"]
+        TEST["Run Tests<br/>Python unittest"]
+        DOCKER["Build Docker<br/>Image"]
+        TRIVY["Trivy Security<br/>Scan"]
+        CI --> BUILD
+        CI --> TEST
+        CI --> DOCKER
+        DOCKER --> TRIVY
+    end
 
-- Fare calculation, fare capping, or payment/ticket purchase flows
-- Full multimodal trip planning with transfer optimization
-- Account/profile system beyond lightweight favorites persistence
-- Booking/reservations (paratransit, microtransit, or intercity services)
-- Offline-first support and push notifications
-- Historical analytics and personalized commute predictions
+    subgraph Production["Production"]
+        RENDER["Render Deploy"]
+        TRIVY -- "pass" --> RENDER
+    end
 
-### 4) Success metrics
+    subgraph Browser["Browser"]
+        FE["React SPA<br/>Vite + TypeScript"]
+    end
 
-MVP is considered successful when these targets are consistently met in production-like usage:
+    subgraph Backend["FastAPI Backend (Python)"]
+        API["REST API<br/>/api/*"]
+        WS["WebSocket<br/>/api/alerts/ws/{id}"]
+        POLLER["Background Poller<br/>asyncio"]
+        API --> POLLER
+    end
 
-#### Performance & reliability
-- **Median backend API response time:** < **500 ms** for stop search/departure queries
-- **P95 backend API response time:** < **1.2 s**
-- **First contentful view (app shell + first useful content):** < **2.0 s** on typical 4G/mobile hardware
-- **Departure data freshness:** realtime feed ingestion lag < **30 s** median
-- **Availability:** 99.5% monthly uptime for public API endpoints
+    subgraph Storage["Storage"]
+        LS["localStorage<br/>Favorites · Recents"]
+        SB["Supabase<br/>Cloud Favorites"]
+    end
 
-#### Product usage & quality
-- **Departure board success rate:** ≥ 98% requests return usable departures (not empty/error due to platform issues)
-- **Map render success rate:** ≥ 99% sessions can load map + vehicle layer
-- **Favorites adoption:** ≥ 25% weekly active riders save at least 1 favorite
-- **Repeat usage:** ≥ 30% 7-day return rate among users who searched at least one stop
+    subgraph ExternalSL["SL Trafiklab Open Data APIs"]
+        SL1["SL Typeahead<br/>Stop Search"]
+        SL2["SL Realtidsinformation 4<br/>Live Departures"]
+        SL3["SL Deviations<br/>Service Alerts"]
+        SL4["SL Journey Planner<br/>Trip Planning"]
+    end
 
-## Features
+    DEV --> GitHub
+    RENDER --> Backend
+    RENDER -.->|"serves static files"| FE
 
-- Real-time departure information for all SL transport modes
-- Search for stops and stations across Stockholm
-- Save favorite stops for quick access
-- Auto-refresh every 30 seconds
-- Clean, modern UI with color-coded transport types
+    FE -- "HTTP REST" --> API
+    FE -- "WebSocket" --> WS
+    FE --> LS
+    FE -.-> SB
+
+    API --> SL1
+    API --> SL2
+    API --> SL3
+    API --> SL4
+    POLLER --> SL3
+    POLLER --> WS
+```
+
+High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans → deploys to Render → running app serves the React SPA (static) and FastAPI backend → backend proxies requests to SL Trafiklab Open APIs → live alerts pushed via WebSocket to the browser**.
 
 ## Tech Stack
 
-### Frontend
-- TypeScript
-- React
-- Vite
-- Supabase (for favorites storage)
+| Category | Technology | Purpose |
+|---|---|---|
+| **Frontend** | React 18 + TypeScript | Component-based UI with type safety |
+| **Build** | Vite 5 | Fast HMR dev server, optimized production builds |
+| **Backend** | Python 3.11+ / FastAPI | Async API server with automatic OpenAPI docs |
+| **API Client** | httpx | Async HTTP client for upstream SL API calls, connection pooling |
+| **Validation** | Pydantic / Pydantic-Settings | Request/response validation + type-safe `.env` config |
+| **Rate Limiting** | slowapi | Per-endpoint rate limiting (30 req/min) |
+| **Database** | Supabase (PostgreSQL) | Optional cloud favorites persistence |
+| **Container** | Docker (multi-stage) | Node build → Python runtime image |
+| **CI/CD** | GitHub Actions | Build, test, scan (Trivy), deploy (Render) |
+
+## Design Considerations
+
+### Architecture Decisions
+
+- **Backend: Python FastAPI** — Chosen for its native `asyncio` support, which is essential for non-blocking HTTP calls to upstream SL APIs and concurrent WebSocket connections. Automatic OpenAPI docs provide a built-in client for debugging.
+- **Frontend: React + TypeScript** — TypeScript catches schema mismatches between SL API responses and the UI at compile time. The component model maps naturally to the card-based departure board UI.
+- **WebSocket for alerts** — Service disruptions need real-time push. FastAPI's WebSocket support enables the backend to push filtered alerts only to subscribers of specific stops, avoiding client-side polling overhead.
+
+### State & Data Management
+
+- **No React Router** — The app is a single-view dashboard. State-driven conditional rendering in `App.tsx` keeps the bundle minimal and avoids URL complexity for a tool that has no navigable pages.
+- **No CSS framework** — All styles are inline `React.CSSProperties`. This eliminates a CSS dependency, keeps the dark-theme styling self-contained in one codebase, and avoids class-name collisions.
+- **localStorage-first persistence** — Favorites and recent stops are stored client-side by default. Supabase cloud sync is an optional opt-in, keeping the core experience dependency-free.
+
+### Resilience & Error Handling
+
+- **Centralized exception handling** — `SLApiError` is caught by global handlers with structured `logger.exception()` logging. Route handlers no longer duplicate try/except blocks. Unhandled exceptions return consistent 500 responses with request context.
+- **Graceful degradation** — Every feature has a fallback: WebSocket → REST polling with exponential backoff (3 attempts before giving up); Supabase → localStorage; SL API key → free/open endpoints.
+- **Background poller isolation** — The alert poller runs as an independent asyncio task. If it crashes, it restarts without affecting REST endpoints. Subscribers per stop are tracked so the poller only fetches data for actively viewed stops. Exponential backoff (1s → 2s → 4s … 120s cap) prevents thundering-herd on recovery.
+- **Health monitoring** — The backend exposes `/api/health`; the frontend polls it every 30 seconds and displays a color-coded indicator, giving immediate visibility into connectivity issues.
+
+### Security
+
+- **API key isolation** — SL API keys are used only server-side via Pydantic Settings (`.env`). The frontend never sees raw keys, preventing client-side exposure. Both key-based and free modes are supported server-side with a simple query parameter switch.
+- **Rate limiting** — All REST endpoints are rate-limited to 30 requests/minute per client IP via `slowapi`, protecting upstream SL API quotas.
+- **CORS hardening** — Configurable `cors_origins` in settings. Wildcard origins (`*`) automatically disable `allow_credentials` to mitigate CWE-942.
+- **No authentication** — The app is intentionally stateless and authentication-free. Favorites are personal (localStorage) or opt-in (Supabase anon key). This eliminates credential management and attack surface.
+
+### Performance
+
+- **Connection pooling** — A shared `httpx.AsyncClient` (20 keepalive connections, 100 max) is created during app lifespan and injected via `Depends()`, avoiding per-request client creation.
+- **Selective polling** — The alert manager polls only for stops with active WebSocket subscribers, minimizing upstream API calls and server resource usage.
+- **30-second refresh cadence** — Departure boards auto-refresh at 30s, balancing freshness against SL API rate limits. Manual refresh is always available for immediate updates.
+- **Minimal bundle** — No router, no CSS framework, no state management library. The frontend ships only what it uses, keeping initial load time low.
+
+---
+
+## Features
+
+### Live Departure Boards
+Real-time departures grouped by transport mode (Bus, Metro, Train, Tram, Ship). Each card shows line number, destination, scheduled/expected time, and deviation status. Auto-refreshes every 30 seconds with manual refresh always available.
+
+### Stop Search with Typeahead
+Async autocomplete search against SL's stop database. Returns stops with type metadata and site IDs. Recent stops (last 4) persist in localStorage for one-tap re-access.
+
+### Nearby Stops with Live Previews
+Browser geolocation or manual text input to find stops ranked by Haversine distance. Each nearby stop shows a live departure preview with mode filtering. Selection loads the full board.
+
+### Journey Planning
+Point-to-point trip planner with stop autocomplete for both origin and destination. Returns up to 5 trip options sorted by departure time, with expandable leg details (mode, line, duration, transfers).
+
+### Live Disruption Alerts
+Service alerts pushed via WebSocket with severity color-coding:
+- **Critical** (red) — Major disruptions
+- **Warning** (amber) — Significant delays
+- **Info** (blue) — Minor changes / planned work
+
+Backend runs a background asyncio task polling only for stops with active WebSocket subscribers.
+
+### Backend Health Monitoring
+Real-time status pill in the header polls `/api/health` every 30 seconds. Green/amber/red indicators let users know if the backend is reachable.
+
+---
+
+## API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | Backend health check |
+| `GET` | `/api/realtime/search?query={text}` | Search stops/stations |
+| `GET` | `/api/realtime/liveboard/{site_id}` | Raw departure data |
+| `GET` | `/api/liveboard/format/{site_id}` | Formatted departure board |
+| `GET` | `/api/nearby/stops?lat={}&lon={}` | Nearby stops ranked by distance |
+| `GET` | `/api/nearby/boards?lat={}&lon={}` | Nearby stops with departure previews |
+| `GET` | `/api/nearby/train-boards?lat={}&lon={}` | Nearby train/metro stations with previews |
+| `GET` | `/api/situations/?site_id={}` | Service alerts (REST) |
+| `GET` | `/api/alerts/?site_id={}` | Alerts REST fallback |
+| `WS` | `/api/alerts/ws/{site_id}` | Live alert push |
+| `POST` | `/api/journey/plan` | Journey planning (JSON body) |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.11+
+- SL API key ([Trafiklab](https://www.trafiklab.se/)) — optional for free mode
 
 ### Backend
-- Python FastAPI
-- httpx for API calls
-- CORS enabled for local development
-
-## Setup Instructions
-
-### 1. Get SL API Key
-
-1. Visit [SL Developer Portal](https://www.trafiklab.se/)
-2. Create an account
-3. Create a new project
-4. Subscribe to the "SL Realtidsinformation 4" API
-5. Copy your API key
-
-### 2. Backend Setup
 
 ```bash
 cd backend
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
 
-Update `backend/.env` with your SL API key:
-```
-SL_REALTIME_API_KEY=your_actual_api_key_here
-```
+# Configure (optional — app runs in free mode without a key)
+cp .env.example .env
+# Edit .env with your SL_REALTIME_API_KEY
 
-Start the backend server:
-```bash
+# API docs at http://localhost:8000/docs
 uvicorn main:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`
+### Frontend
 
-### Deployment env vars
-
-For Docker or Render deployments, set these values in the service environment so the SL endpoints are controlled entirely by deployment config:
-
-- `SL_REALTIME_API_KEY`
-- `SL_TYPEAHEAD_URL`
-- `SL_REALTIME_URL`
-- `SL_SITUATION_URL`
-- `SL_FREE_SITES_URL`
-- `SL_FREE_DEPARTURES_URL`
-- `SL_FREE_DEVIATIONS_URL`
-
-### Render deploy gate
-
-To make Trivy block production deploys, disable Render auto-deploy for the service and set a GitHub secret named `RENDER_DEPLOY_HOOK_URL` to the Render deploy hook URL.
-
-The GitHub Actions workflow will build the Docker image, scan it with Trivy, and only trigger the Render deploy hook after the scan passes on `main`.
-
-### 3. Frontend Setup
-
-Install dependencies:
 ```bash
 npm install
+npm run dev      # Starts on localhost with API proxy to backend
+
+### Docker
+
+```bash
+docker build -t stockholm-travel-planner .
+docker run -p 8000:8000 stockholm-travel-planner
 ```
 
-The frontend will automatically proxy API requests to the backend.
+---
 
-## Running the Application
+## CI/CD Pipeline
 
-1. Start the backend server (see Backend Setup)
-2. The frontend dev server starts automatically
-3. Open your browser to the URL shown
-4. Search for a stop or station
-5. View real-time departures
+```mermaid
+graph LR
+    Push[Push to main] --> CI[GitHub Actions]
+    CI --> Build[Build Frontend<br/>npm ci + npm run build]
+    CI --> Test[Run Tests<br/>Python unittest]
+    CI --> Docker[Build Docker Image]
+    Docker --> Scan[Trivy Vulnerability Scan]
+    Scan --> Deploy[Render Deploy Hook]
+    Deploy --> Live[Production]
+```
 
-## API Endpoints
+The pipeline in `.github/workflows/ci.yml`:
+1. Installs Node dependencies and builds the frontend
+2. Runs Python test suite (7 test files)
+3. Builds the multi-stage Docker image
+4. Scans with Trivy for vulnerabilities
+5. Triggers Render deploy hook (only on `main`, only if scan passes)
 
-### Backend API
+---
 
-- `GET /api/realtime/search?query={query}` - Search for stops/stations
-- `GET /api/realtime/departures/{site_id}` - Get raw departures data
-- `GET /api/departures/format/{site_id}` - Get formatted departures data
+## Project Structure
 
-### SL API Documentation
+```
+├── backend/
+│   ├── main.py                 # FastAPI app (lifespan, middleware, exception handlers)
+│   ├── routers/
+│   │   ├── realtime.py         # Stop search + raw departures
+│   │   ├── liveboard.py        # Formatted departure boards
+│   │   ├── nearby.py           # Geospatial nearby queries
+│   │   ├── situations.py       # Service alerts REST
+│   │   ├── alerts.py           # Alerts REST + WebSocket endpoint
+│   │   └── journey.py          # Journey planning
+│   ├── services/
+│   │   ├── config.py           # Pydantic Settings (`.env` loading, all config)
+│   │   ├── dependencies.py     # FastAPI DI (get_http_client, limiter)
+│   │   ├── schemas.py          # Pydantic response models for every endpoint
+│   │   ├── exceptions.py       # SLApiError definition
+│   │   ├── sl_api.py           # Core SL HTTP client, Haversine distance, normalizers
+│   │   ├── sl_config.py        # Configurable API URLs (wraps config.py)
+│   │   ├── alerts_service.py   # Alert normalization
+│   │   ├── alerts_manager.py   # WebSocket manager + background poller (exponential backoff)
+│   │   └── journey_service.py  # Trip normalization
+│   └── tests/
+│       ├── test_*.py           # 7 test files (unittest, 68 tests)
+│       └── scripts/            # Standalone smoke-test scripts
+├── src/
+│   ├── App.tsx                 # Application shell, state, layout
+│   ├── main.tsx                # React entry point
+│   ├── components/
+│   │   ├── SearchBar.tsx       # Stop autocomplete
+│   │   ├── stopBoard.tsx       # Live departure board + mode filters
+│   │   ├── LiveBoardCard.tsx   # Individual departure card
+│   │   ├── NearbyStops.tsx     # Nearby stops panel
+│   │   ├── FavoritesList.tsx   # Saved stops
+│   │   ├── DisruptionBanner.tsx# Live alerts
+│   │   └── JourneyPlanner.tsx  # Trip planner
+│   ├── hooks/
+│   │   ├── useLocalFavorites.ts# localStorage favorites
+│   │   ├── useAlerts.ts        # WebSocket + REST fallback
+│   │   └── useMediaQuery.ts    # Responsive breakpoints
+│   └── types/index.ts          # TypeScript interfaces
+├── Dockerfile                  # Multi-stage build
+├── .github/workflows/ci.yml    # CI/CD pipeline
+└── supabase/migrations/        # Database schema
+```
 
-## Features to Add
-
-- Push notifications for specific lines
-- Journey planning
-- Disruption alerts
-- Offline support
-- Mobile app version
-- Historical data analysis
-
-## Development
-
-The project uses:
-- Vite for fast development and building
-- TypeScript for type safety
-- FastAPI for high-performance backend
-- Supabase for database and favorites storage
+---
 
 ## License
 

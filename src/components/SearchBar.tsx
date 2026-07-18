@@ -70,14 +70,17 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
 
   return (
     <div style={styles.container}>
-      <label style={styles.label} htmlFor="stop-search">
-        Stop or station
-      </label>
+      <div style={styles.labelRow}>
+        <label style={styles.label} htmlFor="stop-search">
+          Stop or station
+        </label>
+        <span style={styles.hint}>Type at least 2 characters</span>
+      </div>
       <div style={styles.searchBox}>
         <input
           id="stop-search"
           type="text"
-          placeholder="Search for bus stops"
+          placeholder="Search stops, stations, or areas"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}
@@ -115,14 +118,15 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
           }
         >
           {results.map((site) => (
-            <div
+            <button
               key={site.SiteId}
+              type="button"
               onClick={() => handleSelect(site)}
               style={styles.resultItem}
             >
               <div style={styles.siteName}>{site.Name}</div>
               <div style={styles.siteType}>{site.Type}</div>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -146,12 +150,22 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gap: '10px',
   },
+  labelRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+  },
   label: {
     fontSize: '0.84rem',
     fontWeight: 800,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: 'var(--muted)',
+  },
+  hint: {
+    color: 'var(--muted)',
+    fontSize: '0.8rem',
   },
   searchBox: {
     position: 'relative',
@@ -205,10 +219,14 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 10,
   },
   resultItem: {
+    width: '100%',
+    textAlign: 'left',
     padding: '16px 20px',
     cursor: 'pointer',
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
     transition: 'background-color 0.2s',
+    background: 'transparent',
+    border: 'none',
   },
   siteName: {
     fontSize: '16px',

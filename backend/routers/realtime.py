@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, Query, Request
+from httpx import AsyncClient
 
+from services.dependencies import get_http_client, limiter
+from services.schemas import LiveboardResponse, SearchResponse
 from services.sl_api import (
-    SLApiError,
     fetch_realtime_departures,
     fetch_realtime_departures_free,
     normalize_free_departure_payload,
@@ -12,27 +14,30 @@ from services.sl_api import (
 
 router = APIRouter()
 
-@router.get("/search")
-async def search_site(query: str, source: str = "key"):
+@router.get("/search", response_model=SearchResponse)
+@limiter.limit("30/minute")
+async def search_site(
+    request: Request,
+    query: str = Query(min_length=1, max_length=100),
+    source: str = Query(default="key", pattern="^(key|free)$"),
+    client: AsyncClient = Depends(get_http_client),
+):
     """Search for stops/stations by name"""
-    try:
-        if source == "free":
-            return {"ResponseData": normalize_free_sites(await search_stops_free(query))}
-        return await search_stops(query)
-    except SLApiError as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching stops: {str(e)}")
+    if source == "free":
+        return {"ResponseData": normalize_free_sites(await search_stops_free(query, client=client))}
+    return await search_stops(query, client=client)
 
-@router.get("/departures/{site_id}")
-async def get_departures(site_id: int, time_window: int = 60, source: str = "key"):
-    """Get real-time departures for a specific stop/station"""
-    try:
-        if source == "free":
-            raw_departures = await fetch_realtime_departures_free(site_id)
-            return normalize_free_departure_payload(raw_departures, site_id)
-        return await fetch_realtime_departures(site_id, time_window=time_window)
-    except SLApiError as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching departures: {str(e)}")
+@router.get("/liveboard/{site_id}", response_model=LiveboardResponse)
+@limiter.limit("30/minute")
+async def get_departures(
+    request: Request,
+    site_id: int,
+    time_window: int = Query(default=60, ge=1, le=360),
+    source: str = Query(default="key", pattern="^(key|free)$"),
+    client: AsyncClient = Depends(get_http_client),
+):
+    """Get real-time live board data for a specific stop/station"""
+    if source == "free":
+        raw_departures = await fetch_realtime_departures_free(site_id, client=client)
+        return normalize_free_departure_payload(raw_departures, site_id)
+    return await fetch_realtime_departures(site_id, time_window=time_window, client=client)

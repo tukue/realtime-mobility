@@ -1,23 +1,68 @@
+import asyncio
+import logging
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from dotenv import load_dotenv
-import os
+from fastapi.responses import FileResponse, JSONResponse
+from httpx import AsyncClient, Limits, Timeout
 
-load_dotenv()
+from routers import realtime, liveboard, situations, nearby, alerts, journey
+from services.alerts_manager import poller
+from services.config import get_settings
+from services.dependencies import limiter
+from services.exceptions import SLApiError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
-from routers import realtime, departures, situations, nearby
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Stockholm Transit API")
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST_DIR = BASE_DIR / "dist"
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    logger.info(
+        "Starting app — SL free API base: %s, "
+        "key-based API configured: %s",
+        settings.sl_free_sites_url,
+        bool(settings.sl_realtime_api_key),
+    )
+
+    app.state.http_client = AsyncClient(
+        timeout=Timeout(10.0),
+        limits=Limits(max_keepalive_connections=20, max_connections=100),
+    )
+    task = asyncio.create_task(poller.start())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        await poller.stop()
+        await app.state.http_client.aclose()
+
+
+app = FastAPI(title="Stockholm public travel planner API", lifespan=lifespan)
+
+settings = get_settings()
+cors_origins = settings.cors_origins
+cors_allow_credentials = cors_origins != ["*"]
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -40,8 +85,21 @@ async def security_headers(request: Request, call_next):
 
 app.include_router(realtime.router, prefix="/api/realtime", tags=["realtime"])
 app.include_router(nearby.router, prefix="/api/nearby", tags=["nearby"])
-app.include_router(departures.router, prefix="/api/departures", tags=["departures"])
+app.include_router(liveboard.router, prefix="/api/liveboard", tags=["liveboard"])
 app.include_router(situations.router, prefix="/api/situations", tags=["situations"])
+app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
+app.include_router(journey.router, prefix="/api/journey", tags=["journey"])
+
+
+@app.exception_handler(SLApiError)
+async def sl_api_error_handler(request: Request, exc: SLApiError):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+
+
+@app.exception_handler(Exception)
+async def general_error_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception at %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 def _safe_frontend_path(requested_path: str) -> Path | None:
@@ -58,11 +116,32 @@ async def root():
     index_file = FRONTEND_DIST_DIR / "index.html"
     if index_file.exists():
         return FileResponse(index_file)
-    return {"message": "Stockholm Transit API", "status": "running"}
+    return {"message": "Stockholm public travel planner API", "status": "running"}
+
 
 @app.get("/api/health")
-async def health():
-    return {"status": "healthy"}
+async def health(request: Request):
+    settings = get_settings()
+    http_client: AsyncClient | None = getattr(request.app.state, "http_client", None)
+    frontend_available = (FRONTEND_DIST_DIR / "index.html").is_file()
+
+    checks = {
+        "http_client": http_client is not None and not http_client.is_closed,
+        "sl_api_key_configured": bool(settings.sl_realtime_api_key),
+        "frontend_built": frontend_available,
+    }
+
+    healthy = all(checks.values())
+    status_code = 200 if healthy else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "healthy" if healthy else "limited",
+            "checks": checks,
+        },
+    )
+
 
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str):

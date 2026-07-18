@@ -3,3 +3,6 @@ uvicorn[standard]==0.41.0
 httpx==0.28.1
 python-dotenv==1.2.2
 pydantic==2.12.5
+pydantic-settings==2.7.1
+slowapi==0.1.9
+setuptools>=83.0.0

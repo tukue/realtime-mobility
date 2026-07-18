@@ -1,16 +1,20 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Site, DepartureData, Departure } from '../types';
-import DepartureCard from './DepartureCard';
+import { Site, DepartureData, Departure, StopDeviation } from '../types';
+import LiveBoardCard from './LiveBoardCard';
+import DisruptionBanner from './DisruptionBanner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
 interface StopBoardProps {
   site: Site;
   startingLocation?: string;
+  isFavorite?: boolean;
+  onToggleFavorite?: (site: Site) => void;
 }
 
 type ModeKey = 'all' | 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
+type DepartureArrayKey = 'buses' | 'metros' | 'trains' | 'trams' | 'ships';
 
-const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string; key: keyof DepartureData }> = {
+const MODE_META: Record<DepartureArrayKey, { label: string; color: string; key: DepartureArrayKey }> = {
   buses: { label: 'Bus', color: '#d91f2a', key: 'buses' },
   metros: { label: 'Metro', color: '#0078d4', key: 'metros' },
   trains: { label: 'Train', color: '#6b5cff', key: 'trains' },
@@ -18,7 +22,7 @@ const MODE_META: Record<Exclude<ModeKey, 'all'>, { label: string; color: string;
   ships: { label: 'Ship', color: '#0d8f8f', key: 'ships' },
 };
 
-function StopBoard({ site, startingLocation }: StopBoardProps) {
+function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: StopBoardProps) {
   const isMobile = useMediaQuery('(max-width: 720px)');
   const [departures, setDepartures] = useState<DepartureData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,10 +37,10 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
   useEffect(() => {
     isMounted.current = true;
     setActiveMode('all');
-    fetchDepartures(false);
+    fetchFavorites(false);
 
     const interval = setInterval(() => {
-      fetchDepartures(true);
+      fetchFavorites(true);
     }, 30000);
 
     return () => {
@@ -45,7 +49,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     };
   }, [site]);
 
-  const fetchDepartures = async (silent = false) => {
+  const fetchFavorites = async (silent = false) => {
     const requestId = ++requestIdRef.current;
 
     if (!silent) {
@@ -57,7 +61,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/departures/format/${site.SiteId}?source=free`);
+      const response = await fetch(`/api/liveboard/format/${site.SiteId}?source=free`);
       const data = await response.json();
 
       if (!isMounted.current || requestId !== requestIdRef.current) return;
@@ -90,7 +94,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       ships: [],
     };
 
-    return (Object.keys(MODE_META) as Array<Exclude<ModeKey, 'all'>>).map((mode) => {
+    return (Object.keys(MODE_META) as DepartureArrayKey[]).map((mode) => {
       const meta = MODE_META[mode];
       const items = current[meta.key] ?? [];
 
@@ -110,6 +114,9 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       : modeSections.filter((section) => section.mode === activeMode);
 
   const totalDepartures = modeSections.reduce((sum, section) => sum + section.count, 0);
+  const lastUpdatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : 'waiting for first refresh';
 
   const renderDepartures = (items: Departure[], color: string, label: string) => {
     if (!items || items.length === 0) return null;
@@ -118,16 +125,16 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
           <div>
-            <h3 style={styles.categoryTitle}>{label} buses</h3>
-            <p style={styles.sectionSubtitle}>Next buses from this stop</p>
+            <h3 style={styles.categoryTitle}>{label} departures</h3>
+            <p style={styles.sectionSubtitle}>The next live updates for this mode</p>
           </div>
 
-          <span style={{ ...styles.routeBadge, backgroundColor: color }}>Live</span>
+          <span style={{ ...styles.routeBadge, backgroundColor: color }}>{items.length} live</span>
         </div>
 
         <div style={styles.departureGrid}>
-          {items.slice(0, 6).map((departure, index) => (
-            <DepartureCard key={`${departure.line_number}-${departure.destination}-${index}`} departure={departure} color={color} />
+          {items.slice(0, 6).map((entry, index) => (
+            <LiveBoardCard key={`${entry.line_number}-${entry.destination}-${index}`} entry={entry} color={color} />
           ))}
         </div>
       </section>
@@ -138,7 +145,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
     return (
       <div style={styles.container}>
         <div style={styles.loadingWrap}>
-          <div style={styles.loadingTitle}>Loading live buses</div>
+          <div style={styles.loadingTitle}>Loading live departures</div>
           <div style={styles.loadingText}>Fetching the next transport options for {site.Name}.</div>
         </div>
       </div>
@@ -151,7 +158,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
         <div style={styles.errorCard}>
           <div style={styles.errorTitle}>Something went wrong</div>
           <div style={styles.errorText}>{error}</div>
-          <button onClick={() => fetchDepartures(false)} style={styles.retryButton}>
+          <button onClick={() => fetchFavorites(false)} style={styles.retryButton}>
             Try again
           </button>
         </div>
@@ -166,27 +173,40 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
           <div style={styles.routeLine}>
-            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live buses for ${site.Name}`}
+            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live departures for ${site.Name}`}
           </div>
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
             <span style={styles.metaChip}>{refreshing ? 'Refreshing now' : 'Auto refresh on'}</span>
-            <span style={styles.metaChip}>
-              {lastUpdated
-                ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : 'Waiting for first update'}
-            </span>
-            <span style={styles.metaChip}>{totalDepartures} live buses</span>
+            <span style={styles.metaChip}>{`Updated ${lastUpdatedLabel}`}</span>
+            <span style={styles.metaChip}>{totalDepartures} live departures</span>
           </div>
         </div>
 
-        <button onClick={() => fetchDepartures(true)} style={styles.refreshButton}>
-          {refreshing ? 'Refreshing...' : 'Refresh now'}
-        </button>
+        <div style={styles.headerActions}>
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={() => onToggleFavorite(site)}
+              style={isFavorite ? styles.pinButtonActive : styles.pinButton}
+              title={isFavorite ? 'Unpin stop' : 'Pin stop'}
+            >
+              {isFavorite ? '★ Saved' : '☆ Pin'}
+            </button>
+          )}
+          <button onClick={() => fetchFavorites(true)} style={styles.refreshButton}>
+            {refreshing ? 'Refreshing...' : 'Refresh now'}
+          </button>
+        </div>
       </div>
 
-      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>
-        <button
+      <DisruptionBanner siteId={site.SiteId} />
+
+      {departures?.stop_deviations && departures.stop_deviations.length > 0 && (
+        <StopDeviationsBanner deviations={departures.stop_deviations} />
+      )}
+
+      <div style={isMobile ? { ...styles.modeBar, gap: '8px' } : styles.modeBar}>        <button
           type="button"
           onClick={() => setActiveMode('all')}
           style={activeMode === 'all' ? { ...styles.modeButton, ...styles.modeButtonActive } : styles.modeButton}
@@ -194,7 +214,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
           All
         </button>
 
-        {(Object.keys(MODE_META) as Array<Exclude<ModeKey, 'all'>>).map((mode) => {
+        {(Object.keys(MODE_META) as DepartureArrayKey[]).map((mode) => {
           const section = modeSections.find((item) => item.mode === mode);
           const isActive = activeMode === mode;
 
@@ -220,7 +240,7 @@ function StopBoard({ site, startingLocation }: StopBoardProps) {
 
       {departures && visibleSections.length === 0 && (
         <div style={styles.noDepartures}>
-          No live buses are available for this mode right now.
+          No live departures are available for this mode right now.
         </div>
       )}
     </div>
@@ -266,6 +286,32 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.96rem',
     lineHeight: 1.5,
   },
+  headerActions: {
+    display: 'flex',
+    gap: '10px',
+    flexShrink: 0,
+    alignItems: 'center',
+  },
+  pinButton: {
+    padding: '12px 16px',
+    fontSize: '0.92rem',
+    fontWeight: 800,
+    background: 'rgba(255, 200, 0, 0.1)',
+    color: '#ffe08a',
+    border: '1px solid rgba(255, 200, 0, 0.3)',
+    borderRadius: '14px',
+    cursor: 'pointer',
+  },
+  pinButtonActive: {
+    padding: '12px 16px',
+    fontSize: '0.92rem',
+    fontWeight: 800,
+    background: 'rgba(255, 200, 0, 0.2)',
+    color: '#ffd75e',
+    border: '1px solid rgba(255, 200, 0, 0.5)',
+    borderRadius: '14px',
+    cursor: 'pointer',
+  },
   refreshButton: {
     flexShrink: 0,
     padding: '12px 16px',
@@ -288,7 +334,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 10px',
     borderRadius: '999px',
     background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid var(--border)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
     color: 'var(--muted)',
     fontSize: '0.82rem',
     fontWeight: 700,
@@ -414,6 +460,44 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     background: 'rgba(255, 255, 255, 0.04)',
   },
+  stopDeviationBanner: {
+    display: 'grid',
+    gap: '10px',
+    marginBottom: '18px',
+    padding: '14px 16px',
+    borderRadius: '18px',
+    background: 'rgba(255, 200, 0, 0.08)',
+    border: '1px solid rgba(255, 200, 0, 0.25)',
+  },
+  stopDeviationItem: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'flex-start',
+    lineHeight: 1.45,
+    color: '#ffe08a',
+    fontSize: '0.9rem',
+  },
+  stopDeviationIcon: {
+    flexShrink: 0,
+    fontSize: '1rem',
+    marginTop: '1px',
+  },
+  stopDeviationText: {
+    color: 'inherit',
+  },
 };
+
+function StopDeviationsBanner({ deviations }: { deviations: StopDeviation[] }) {
+  return (
+    <div style={styles.stopDeviationBanner}>
+      {deviations.map((dev) => (
+        <div key={dev.id} style={styles.stopDeviationItem}>
+          <span style={styles.stopDeviationIcon}>⚠</span>
+          <span style={styles.stopDeviationText}>{dev.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default StopBoard;

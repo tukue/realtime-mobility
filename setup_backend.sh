@@ -46,8 +46,8 @@ if [ ! -f "$DOTENV_FILE" ]; then
         cp "$DOTENV_EXAMPLE" "$DOTENV_FILE"
         echo "⚠️  Please update $DOTENV_FILE with your SL API Key."
     else
-        echo "SL_REALTIME_API_KEY=233bffb3002c456bb99d042f44d00fee" > "$DOTENV_FILE"
-        echo "✅ Created .env with your provided API key."
+        echo "SL_REALTIME_API_KEY=your_sl_api_key_here" > "$DOTENV_FILE"
+        echo "⚠️  Created .env with placeholder key. Update it with your real SL API key."
     fi
 else
     echo "✅ .env file already exists."

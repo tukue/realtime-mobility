@@ -11,11 +11,13 @@ COPY vite.config.ts /app/vite.config.ts
 COPY src /app/src
 RUN npm run build
 
-FROM python:3.11.15-slim-bookworm
+FROM python:3.11-slim-bookworm
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
