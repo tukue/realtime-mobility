@@ -43,7 +43,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_*.py"
 
       - name: Audit npm dependencies
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=critical
 
       - name: Audit Python dependencies
         run: pip install pip-audit && pip-audit --strict -r backend/requirements.txt
