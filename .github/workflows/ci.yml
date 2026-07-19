@@ -46,10 +46,10 @@ jobs:
         run: npm audit --audit-level=high
 
       - name: Audit Python dependencies
-        run: pip install pip-audit && pip-audit -r backend/requirements.txt
+        run: pip install pip-audit && pip-audit --strict -r backend/requirements.txt
 
       - name: Run Bandit SAST
-        run: pip install bandit && bandit -r backend/ -ll --exclude backend/tests
+        run: pip install bandit && bandit -r backend/ -ll --exclude backend/tests || exit 1
 
       - name: Run Gitleaks secret scanner
         uses: gitleaks/gitleaks-action@v2
