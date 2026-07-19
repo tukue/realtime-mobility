@@ -42,6 +42,20 @@ jobs:
         working-directory: backend
         run: python -m unittest discover -s tests -p "test_*.py"
 
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=high
+
+      - name: Audit Python dependencies
+        run: pip install pip-audit && pip-audit -r backend/requirements.txt
+
+      - name: Run Bandit SAST
+        run: pip install bandit && bandit -r backend/ -ll --exclude backend/tests
+
+      - name: Run Gitleaks secret scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Docker image
         run: docker build -t realtime-mobility:${{ github.sha }} .
 
