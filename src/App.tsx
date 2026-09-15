@@ -479,7 +479,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   startInput: {
     width: '100%',
-    padding: '14px 150px 14px 16px',
+    padding: '14px 130px 14px 16px',
     fontSize: '16px',
     color: 'var(--text)',
     border: '1px solid var(--border)',
