@@ -13,16 +13,22 @@ We will improve the frontend one focused step at a time. The existing terminolog
 
 ## Step 2 — Make search results easier to scan
 
-**Status: Next**
+**Status: Complete**
 
 - Improve the visual separation between stop name and stop type.
 - Add a clear selected/hover state.
 - Make the result area easier to use with a keyboard and screen reader.
 - Keep the existing result data and terminology.
 
+## Step 2 implementation notes
+
+- Search results now support Arrow Up, Arrow Down, Enter, and Escape.
+- The active result has a visible selected state and an accessible active descendant.
+- Each result keeps the existing stop name and stop type while making the action clearer.
+
 ## Step 3 — Make nearby stops easier to compare
 
-**Status: Planned**
+**Status: Next**
 
 - Present distance, stop type, and live preview in a consistent hierarchy.
 - Make **Open board** the clearest action on each result.

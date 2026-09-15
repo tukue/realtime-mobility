@@ -203,14 +203,25 @@ function App() {
               <label style={styles.inlineLabel} htmlFor="starting-location">
                 Stockholm stop, station, or area
               </label>
-              <input
-                id="starting-location"
-                type="text"
-                value={startingLocation}
-                onChange={(e) => setStartingLocation(e.target.value)}
-                placeholder="Stop, station, or area"
-                style={styles.startInput}
-              />
+              <div style={styles.startInputWrap}>
+                <input
+                  id="starting-location"
+                  type="text"
+                  value={startingLocation}
+                  onChange={(e) => setStartingLocation(e.target.value)}
+                  placeholder="Stop, station, or area"
+                  style={styles.startInput}
+                />
+                <button
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  style={styles.inputLocationButton}
+                  disabled={geoLoading}
+                  aria-label="Use my location to find nearby transport"
+                >
+                  {geoLoading ? 'Locating...' : 'Use my location'}
+                </button>
+              </div>
               <div style={styles.helperText}>
                 Search a place manually, or tap <span style={styles.helperStrong}>Use my location</span> to rank the closest stops automatically.
               </div>
@@ -230,9 +241,6 @@ function App() {
                 </div>
               </div>
               <div style={styles.locationActions}>
-                <button type="button" onClick={handleUseMyLocation} style={styles.locationButton} disabled={geoLoading}>
-                  {geoLoading ? 'Locating...' : geoLocation ? 'Use my location again' : 'Use my location'}
-                </button>
                 {geoLocation && (
                   <button type="button" onClick={handleUseManualInput} style={styles.locationButtonSecondary}>
                     Use manual input
@@ -525,7 +533,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   startInput: {
     width: '100%',
-    padding: '14px 16px',
+    padding: '14px 150px 14px 16px',
     fontSize: '16px',
     color: 'var(--text)',
     border: '1px solid var(--border)',
@@ -533,7 +541,25 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'rgba(255, 255, 255, 0.05)',
     boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
     outline: 'none',
+  },
+  startInputWrap: {
+    position: 'relative',
     marginBottom: '10px',
+  },
+  inputLocationButton: {
+    position: 'absolute',
+    top: '50%',
+    right: '8px',
+    transform: 'translateY(-50%)',
+    padding: '8px 10px',
+    borderRadius: '11px',
+    border: '1px solid rgba(104, 183, 255, 0.35)',
+    background: 'rgba(104, 183, 255, 0.14)',
+    color: '#c7e6ff',
+    fontSize: '0.76rem',
+    fontWeight: 800,
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
   },
   helperText: {
     color: 'var(--muted)',

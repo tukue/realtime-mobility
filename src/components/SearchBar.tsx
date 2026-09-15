@@ -14,6 +14,7 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   useEffect(() => {
     if (query.length < 2) {
@@ -39,6 +40,7 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
         }
         setResults(sites);
         setShowResults(true);
+        setHighlightedIndex(-1);
       } catch (error) {
         console.error('Search error:', error);
         if (!isMounted) {
@@ -66,6 +68,30 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
     setQuery(site.Name);
     setShowResults(false);
     setError(null);
+    setHighlightedIndex(-1);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setShowResults(false);
+      setHighlightedIndex(-1);
+      return;
+    }
+
+    if (!showResults || results.length === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedIndex((current) => (current + 1) % results.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedIndex((current) => (current <= 0 ? results.length - 1 : current - 1));
+    } else if (event.key === 'Enter' && highlightedIndex >= 0) {
+      event.preventDefault();
+      handleSelect(results[highlightedIndex]);
+    }
   };
 
   return (
@@ -84,7 +110,13 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}
+          onKeyDown={handleKeyDown}
           aria-label="Search for bus stops"
+          aria-autocomplete="list"
+          aria-controls="stop-search-results"
+          aria-activedescendant={
+            highlightedIndex >= 0 ? `stop-search-result-${results[highlightedIndex].SiteId}` : undefined
+          }
           style={styles.input}
         />
         {query.length > 0 && !loading && (
@@ -95,6 +127,7 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
               setResults([]);
               setShowResults(false);
               setError(null);
+              setHighlightedIndex(-1);
             }}
             style={styles.clearButton}
           >
@@ -106,6 +139,8 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
 
       {showResults && results.length > 0 && (
         <div
+          id="stop-search-results"
+          role="listbox"
           style={
             isMobile
               ? {
@@ -117,15 +152,22 @@ function SearchBar({ onSiteSelect }: SearchBarProps) {
               : styles.results
           }
         >
-          {results.map((site) => (
+          {results.map((site, index) => (
             <button
+              id={`stop-search-result-${site.SiteId}`}
               key={site.SiteId}
               type="button"
               onClick={() => handleSelect(site)}
-              style={styles.resultItem}
+              onMouseEnter={() => setHighlightedIndex(index)}
+              role="option"
+              aria-selected={highlightedIndex === index}
+              style={highlightedIndex === index ? { ...styles.resultItem, ...styles.resultItemActive } : styles.resultItem}
             >
-              <div style={styles.siteName}>{site.Name}</div>
-              <div style={styles.siteType}>{site.Type}</div>
+              <div style={styles.resultText}>
+                <div style={styles.siteName}>{site.Name}</div>
+                <div style={styles.siteType}>{site.Type}</div>
+              </div>
+              <span style={styles.resultHint}>{highlightedIndex === index ? 'Press Enter' : 'Open board'}</span>
             </button>
           ))}
         </div>
@@ -220,6 +262,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   resultItem: {
     width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     textAlign: 'left',
     padding: '16px 20px',
     cursor: 'pointer',
@@ -227,6 +272,13 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'background-color 0.2s',
     background: 'transparent',
     border: 'none',
+  },
+  resultItemActive: {
+    background: 'rgba(104, 183, 255, 0.12)',
+    boxShadow: 'inset 3px 0 0 var(--brand)',
+  },
+  resultText: {
+    minWidth: 0,
   },
   siteName: {
     fontSize: '16px',
@@ -237,6 +289,14 @@ const styles: Record<string, React.CSSProperties> = {
   siteType: {
     fontSize: '14px',
     color: 'var(--muted)',
+  },
+  resultHint: {
+    flexShrink: 0,
+    marginLeft: '14px',
+    color: 'var(--brand)',
+    fontSize: '0.74rem',
+    fontWeight: 800,
+    opacity: 0.9,
   },
   emptyResults: {
     padding: '14px 16px',
