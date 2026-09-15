@@ -11,7 +11,6 @@ import { Site } from './types';
 const RECENT_SITES_KEY = 'realtime-mobility.recent-sites';
 const STARTING_LOCATION_KEY = 'realtime-mobility.starting-location';
 const MAX_RECENTS = 4;
-const QUICK_LOCATIONS = ['T-Centralen', 'Slussen', 'Odenplan', 'Stockholm Centralstation'];
 
 type GeoLocation = {
   latitude: number;
@@ -154,12 +153,6 @@ function App() {
     setGeoError(null);
   };
 
-  const handleQuickLocation = (location: string) => {
-    setGeoLocation(null);
-    setGeoError(null);
-    setStartingLocation(location);
-  };
-
   return (
     <div style={styles.shell}>
       <div style={styles.glowLeft} />
@@ -168,9 +161,9 @@ function App() {
       <main style={isMobile ? { ...styles.container, padding: '16px 14px 24px' } : styles.container}>
         <header style={styles.header}>
           <div style={styles.kicker}>Stockholm travel planner</div>
-          <h1 style={styles.title}>See the next bus or train near you</h1>
+          <h1 style={styles.title}>Find your stop, then check nearby stations</h1>
           <p style={styles.subtitle}>
-            Search any Stockholm stop, station, or area to compare live departures in one place. Use your location for the fastest nearby results.
+            Search a stop or station, save the ones you use often, or use nearby stops to jump straight into the closest live boards.
           </p>
 
           <div style={styles.pills}>
@@ -189,19 +182,15 @@ function App() {
           }
         >
           <aside style={styles.sidebar}>
-            <div style={isMobile ? { ...styles.card, ...styles.primaryCard, padding: '16px' } : { ...styles.card, ...styles.primaryCard }}>
-              <div style={styles.primaryCardTopline}>
-                <div style={styles.cardLabel}>Find a stop</div>
-                <span style={styles.startBadge}>Start here</span>
-              </div>
-              <p style={styles.searchLead}>Search for a stop or station to see live departures.</p>
+            <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
+              <div style={styles.cardLabel}>Find a stop</div>
               <SearchBar onSiteSelect={handleSiteSelect} />
             </div>
 
             <div style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
-              <div style={styles.cardLabel}>Find transport near a place</div>
+              <div style={styles.cardLabel}>Nearby buses</div>
               <label style={styles.inlineLabel} htmlFor="starting-location">
-                Stockholm stop, station, or area
+                Type a stop, station, or area
               </label>
               <div style={styles.startInputWrap}>
                 <input
@@ -223,22 +212,7 @@ function App() {
                 </button>
               </div>
               <div style={styles.helperText}>
-                Search a place manually, or tap <span style={styles.helperStrong}>Use my location</span> to rank the closest stops automatically.
-              </div>
-              <div style={styles.quickLocationGroup}>
-                <div style={styles.quickLocationLabel}>Popular Stockholm places</div>
-                <div style={styles.quickLocationList}>
-                  {QUICK_LOCATIONS.map((location) => (
-                    <button
-                      key={location}
-                      type="button"
-                      onClick={() => handleQuickLocation(location)}
-                      style={startingLocation === location ? styles.quickLocationActive : styles.quickLocation}
-                    >
-                      {location}
-                    </button>
-                  ))}
-                </div>
+                Use a typed starting point or tap <span style={styles.helperStrong}>Use my location</span> to rank the closest stops automatically.
               </div>
               <div style={styles.locationActions}>
                 {geoLocation && (
@@ -323,7 +297,7 @@ function App() {
                   The board shows live buses, metro, trains, trams, and ships once you choose a stop.
                 </p>
                 <div style={styles.emptyHint}>
-                  Start with a place above, then choose a nearby bus, metro, or train board.
+                  Use nearby stops to travel.
                 </div>
               </div>
             )}
@@ -467,34 +441,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 24px 70px rgba(0, 0, 0, 0.25)',
     backdropFilter: 'blur(18px)',
   },
-  primaryCard: {
-    border: '1px solid rgba(104, 183, 255, 0.36)',
-    boxShadow: '0 24px 70px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(104, 183, 255, 0.05)',
-  },
-  primaryCardTopline: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '12px',
-    marginBottom: '8px',
-  },
-  startBadge: {
-    padding: '5px 9px',
-    borderRadius: '999px',
-    background: 'rgba(104, 183, 255, 0.14)',
-    border: '1px solid rgba(104, 183, 255, 0.24)',
-    color: '#c7e6ff',
-    fontSize: '0.72rem',
-    fontWeight: 800,
-    letterSpacing: '0.05em',
-    textTransform: 'uppercase',
-  },
-  searchLead: {
-    margin: '0 0 14px',
-    color: 'var(--text)',
-    fontSize: '0.92rem',
-    lineHeight: 1.45,
-  },
   cardLabel: {
     fontSize: '0.82rem',
     fontWeight: 800,
@@ -608,41 +554,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   nearbyWrap: {
     marginTop: '14px',
-  },
-  quickLocationGroup: {
-    display: 'grid',
-    gap: '8px',
-    marginTop: '12px',
-  },
-  quickLocationLabel: {
-    color: 'var(--muted)',
-    fontSize: '0.76rem',
-    fontWeight: 800,
-    letterSpacing: '0.07em',
-    textTransform: 'uppercase',
-  },
-  quickLocationList: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '7px',
-  },
-  quickLocation: {
-    padding: '7px 10px',
-    borderRadius: '999px',
-    border: '1px solid var(--border)',
-    background: 'rgba(255, 255, 255, 0.04)',
-    color: 'var(--muted)',
-    fontSize: '0.78rem',
-    fontWeight: 700,
-  },
-  quickLocationActive: {
-    padding: '7px 10px',
-    borderRadius: '999px',
-    border: '1px solid rgba(104, 183, 255, 0.4)',
-    background: 'rgba(104, 183, 255, 0.14)',
-    color: '#c7e6ff',
-    fontSize: '0.78rem',
-    fontWeight: 800,
   },
   stack: {
     display: 'grid',
