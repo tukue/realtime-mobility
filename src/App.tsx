@@ -17,6 +17,8 @@ type GeoLocation = {
   longitude: number;
 };
 
+type GeoErrorKind = 'unsupported' | 'permission-denied' | 'unavailable' | null;
+
 function loadRecentSites(): Site[] {
   try {
     const stored = window.localStorage.getItem(RECENT_SITES_KEY);
@@ -43,6 +45,7 @@ function App() {
   const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [geoErrorKind, setGeoErrorKind] = useState<GeoErrorKind>(null);
   const [recentSites, setRecentSites] = useState<Site[]>([]);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const { favorites, isFavorite, toggleFavorite, clearAll } = useLocalFavorites();
@@ -117,11 +120,13 @@ function App() {
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setGeoError('Your browser does not support location access. Use the manual input instead.');
+      setGeoErrorKind('unsupported');
       return;
     }
 
     setGeoLoading(true);
     setGeoError(null);
+    setGeoErrorKind(null);
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -130,15 +135,18 @@ function App() {
           longitude: position.coords.longitude,
         });
         setGeoLoading(false);
+        setGeoErrorKind(null);
       },
       (error) => {
         setGeoLocation(null);
         setGeoLoading(false);
-        setGeoError(
-          error.code === error.PERMISSION_DENIED
-            ? 'Location permission was denied. Use the manual starting position instead.'
-            : 'Could not read your location right now. Use the manual starting position instead.'
-        );
+        if (error.code === error.PERMISSION_DENIED) {
+          setGeoErrorKind('permission-denied');
+          setGeoError('Location permission was denied. Use the manual starting position instead.');
+        } else {
+          setGeoErrorKind('unavailable');
+          setGeoError('Could not read your location right now. Use the manual starting position instead.');
+        }
       },
       {
         enableHighAccuracy: false,
@@ -151,6 +159,7 @@ function App() {
   const handleUseManualInput = () => {
     setGeoLocation(null);
     setGeoError(null);
+    setGeoErrorKind(null);
   };
 
   return (
@@ -199,14 +208,21 @@ function App() {
                   value={startingLocation}
                   onChange={(e) => setStartingLocation(e.target.value)}
                   placeholder="Stop, station, or area"
-                  style={styles.startInput}
+                  style={isMobile ? { ...styles.startInput, ...styles.startInputMobile } : styles.startInput}
                 />
                 <button
                   type="button"
                   onClick={handleUseMyLocation}
-                  style={styles.inputLocationButton}
+                  style={
+                    geoLoading
+                      ? { ...styles.inputLocationButton, ...styles.inputLocationButtonDisabled }
+                      : isMobile
+                        ? { ...styles.inputLocationButton, ...styles.inputLocationButtonMobile }
+                        : styles.inputLocationButton
+                  }
                   disabled={geoLoading}
                   aria-label="Use my location to find nearby transport"
+                  aria-busy={geoLoading}
                 >
                   {geoLoading ? 'Locating...' : 'Use my location'}
                 </button>
@@ -221,8 +237,34 @@ function App() {
                   </button>
                 )}
               </div>
-              {geoLocation && <div style={styles.locationStatus}>Using your live location to rank the nearest live bus stops.</div>}
-              {geoError && <div style={styles.locationError}>{geoError}</div>}
+              {(geoLoading || geoLocation || geoError) && (
+                <div style={styles.locationFeedback} aria-live="polite" aria-atomic="true">
+                  {geoLoading && (
+                    <div style={styles.locationLoading}>
+                      <span style={styles.locationIndicator} aria-hidden="true" />
+                      <span>Locating...</span>
+                    </div>
+                  )}
+                  {geoLocation && (
+                    <div style={styles.locationStatus}>
+                      <span style={styles.locationIndicator} aria-hidden="true" />
+                      <span>Using your live location to rank the nearest live bus stops.</span>
+                    </div>
+                  )}
+                  {geoError && (
+                    <div
+                      style={
+                        geoErrorKind === 'permission-denied'
+                          ? { ...styles.locationError, ...styles.locationErrorPermission }
+                          : styles.locationError
+                      }
+                    >
+                      <span style={styles.locationErrorIcon} aria-hidden="true">!</span>
+                      <span>{geoError}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={styles.nearbyWrap}>
                 <NearbyStops
                   startingPosition={startingLocation}
@@ -488,6 +530,9 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
     outline: 'none',
   },
+  startInputMobile: {
+    paddingRight: '116px',
+  },
   startInputWrap: {
     position: 'relative',
     marginBottom: '10px',
@@ -506,6 +551,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     whiteSpace: 'nowrap',
     cursor: 'pointer',
+  },
+  inputLocationButtonMobile: {
+    right: '6px',
+    padding: '7px 6px',
+    fontSize: '0.68rem',
+  },
+  inputLocationButtonDisabled: {
+    opacity: 0.65,
+    cursor: 'wait',
   },
   helperText: {
     color: 'var(--muted)',
@@ -532,16 +586,64 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   locationStatus: {
-    marginTop: '10px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
     color: '#bdf7d5',
     fontSize: '0.88rem',
     fontWeight: 700,
+    lineHeight: 1.5,
+  },
+  locationFeedback: {
+    display: 'grid',
+    gap: '8px',
+    marginTop: '10px',
+  },
+  locationLoading: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    color: 'var(--brand)',
+    fontSize: '0.88rem',
+    fontWeight: 800,
+  },
+  locationIndicator: {
+    width: '8px',
+    height: '8px',
+    flexShrink: 0,
+    borderRadius: '50%',
+    background: 'currentColor',
+    boxShadow: '0 0 0 4px rgba(113, 211, 155, 0.12)',
   },
   locationError: {
-    marginTop: '10px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
     color: '#ffd2d2',
     fontSize: '0.88rem',
     lineHeight: 1.5,
+    padding: '10px 12px',
+    borderRadius: '14px',
+    background: 'rgba(255, 122, 122, 0.1)',
+    border: '1px solid rgba(255, 122, 122, 0.22)',
+  },
+  locationErrorPermission: {
+    background: 'rgba(247, 185, 85, 0.1)',
+    borderColor: 'rgba(247, 185, 85, 0.25)',
+    color: '#ffe3b2',
+  },
+  locationErrorIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '18px',
+    height: '18px',
+    flexShrink: 0,
+    borderRadius: '50%',
+    background: 'currentColor',
+    color: '#07111f',
+    fontSize: '0.72rem',
+    fontWeight: 900,
   },
   nearbyWrap: {
     marginTop: '14px',

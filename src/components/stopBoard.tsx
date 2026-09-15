@@ -113,6 +113,25 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
       ? modeSections.filter((section) => section.count > 0)
       : modeSections.filter((section) => section.mode === activeMode);
 
+  const visibleItems = visibleSections.flatMap((section) => section.items.slice(0, 6));
+  const soonestDeparture = visibleItems.reduce<Departure | null>((soonest, current) => {
+    if (!soonest) {
+      return current;
+    }
+
+    const currentTime = Date.parse(current.expected_datetime);
+    const soonestTime = Date.parse(soonest.expected_datetime);
+
+    if (Number.isNaN(currentTime)) {
+      return soonest;
+    }
+    if (Number.isNaN(soonestTime)) {
+      return current;
+    }
+
+    return currentTime < soonestTime ? current : soonest;
+  }, null);
+
   const totalDepartures = modeSections.reduce((sum, section) => sum + section.count, 0);
   const lastUpdatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -134,7 +153,12 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
 
         <div style={styles.departureGrid}>
           {items.slice(0, 6).map((entry, index) => (
-            <LiveBoardCard key={`${entry.line_number}-${entry.destination}-${index}`} entry={entry} color={color} />
+            <LiveBoardCard
+              key={`${entry.line_number}-${entry.destination}-${index}`}
+              entry={entry}
+              color={color}
+              isSoonest={entry === soonestDeparture}
+            />
           ))}
         </div>
       </section>
@@ -177,9 +201,17 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
           </div>
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
-            <span style={styles.metaChip}>{refreshing ? 'Refreshing now' : 'Auto refresh on'}</span>
-            <span style={styles.metaChip}>{`Updated ${lastUpdatedLabel}`}</span>
-            <span style={styles.metaChip}>{totalDepartures} live departures</span>
+            <span
+              style={
+                refreshing
+                  ? { ...styles.metaChip, ...styles.metaChipRefreshing }
+                  : { ...styles.metaChip, ...styles.metaChipLive }
+              }
+            >
+              {refreshing ? 'Refreshing now' : 'Auto refresh on'}
+            </span>
+            <span style={{ ...styles.metaChip, ...styles.metaChipUpdated }}>{`Updated ${lastUpdatedLabel}`}</span>
+            <span style={{ ...styles.metaChip, ...styles.metaChipCount }}>{totalDepartures} live departures</span>
           </div>
         </div>
 
@@ -338,6 +370,24 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--muted)',
     fontSize: '0.82rem',
     fontWeight: 700,
+  },
+  metaChipLive: {
+    background: 'rgba(113, 211, 155, 0.12)',
+    borderColor: 'rgba(113, 211, 155, 0.24)',
+    color: '#bdf7d5',
+  },
+  metaChipRefreshing: {
+    background: 'rgba(247, 185, 85, 0.14)',
+    borderColor: 'rgba(247, 185, 85, 0.3)',
+    color: '#ffe3b2',
+  },
+  metaChipUpdated: {
+    background: 'rgba(104, 183, 255, 0.12)',
+    borderColor: 'rgba(104, 183, 255, 0.24)',
+    color: '#c7e6ff',
+  },
+  metaChipCount: {
+    color: 'var(--text)',
   },
   modeBar: {
     display: 'flex',
