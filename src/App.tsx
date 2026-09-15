@@ -522,15 +522,6 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '10px',
     marginTop: '12px',
   },
-  locationButton: {
-    padding: '10px 14px',
-    borderRadius: '999px',
-    border: '1px solid rgba(104, 183, 255, 0.35)',
-    background: 'rgba(104, 183, 255, 0.14)',
-    color: '#c7e6ff',
-    fontWeight: 800,
-    cursor: 'pointer',
-  },
   locationButtonSecondary: {
     padding: '10px 14px',
     borderRadius: '999px',
