@@ -175,9 +175,8 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                 }
               >
                 <div style={styles.resultMain}>
-                  <div style={styles.siteName}>{site.Name}</div>
-                  <div style={styles.siteMeta}>
-                    <span style={styles.siteType}>{site.Type}</span>
+                  <div style={styles.siteHeading}>
+                    <div style={styles.siteName}>{site.Name}</div>
                     {typeof site.distance_meters === 'number' && (
                       <span style={styles.distance}>
                         {site.distance_meters < 1000
@@ -186,9 +185,17 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                       </span>
                     )}
                   </div>
+                  <div style={styles.siteMeta}>
+                    <span style={styles.siteType}>{site.Type}</span>
+                  </div>
 
                   {hasCoordinates && (
-                    <div style={styles.previewList}>
+                    <div style={styles.previewBlock}>
+                      <div style={styles.previewHeader}>
+                        <span>Live preview</span>
+                        {hasPreview && <span style={styles.previewHeaderMeta}>{previewDeps.length} shown</span>}
+                      </div>
+                      <div style={styles.previewList}>
                       {hasPreview ? (
                         previewDeps.map((departure, index) => (
                           <div key={`${site.SiteId}-${departure.line_number}-${index}`} style={styles.previewItem}>
@@ -214,6 +221,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                       ) : (
                         <div style={styles.previewFallback}>{emptyText(modeFilter, hasCoordinates)}</div>
                       )}
+                      </div>
                     </div>
                   )}
 
@@ -239,7 +247,10 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
                       }
                     </span>
                   )}
-                  <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>Open board</span>
+                  <span style={isMobile ? { ...styles.cta, alignSelf: 'flex-start' } : styles.cta}>
+                    <span>Open board</span>
+                    <span style={styles.ctaArrow} aria-hidden="true">→</span>
+                  </span>
                 </div>
               </button>
             );
@@ -329,11 +340,12 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     gap: '14px',
     textAlign: 'left',
-    background: 'rgba(255, 255, 255, 0.06)',
+    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04))',
     color: 'var(--text)',
     border: '1px solid var(--border)',
     borderRadius: '18px',
     cursor: 'pointer',
+    transition: 'transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease',
   },
   resultMain: {
     minWidth: 0,
@@ -341,13 +353,28 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '6px',
     flex: 1,
   },
+  siteHeading: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: '10px',
+    flexWrap: 'wrap',
+  },
   siteName: {
-    fontSize: '0.98rem',
+    fontSize: '1.06rem',
     fontWeight: 800,
+    lineHeight: 1.25,
   },
   siteType: {
-    fontSize: '0.82rem',
+    display: 'inline-flex',
+    padding: '4px 8px',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    fontSize: '0.74rem',
     color: 'var(--muted)',
+    fontWeight: 800,
+    letterSpacing: '0.04em',
   },
   siteMeta: {
     display: 'flex',
@@ -356,14 +383,38 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
   },
   distance: {
+    flexShrink: 0,
+    padding: '5px 8px',
+    borderRadius: '999px',
+    background: 'rgba(104, 183, 255, 0.12)',
+    border: '1px solid rgba(104, 183, 255, 0.2)',
     fontSize: '0.78rem',
     fontWeight: 800,
     color: '#a9d7ff',
   },
+  previewBlock: {
+    display: 'grid',
+    gap: '7px',
+    marginTop: '2px',
+  },
+  previewHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    color: 'var(--muted)',
+    fontSize: '0.72rem',
+    fontWeight: 800,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  previewHeaderMeta: {
+    color: '#bdf7d5',
+    letterSpacing: '0.04em',
+  },
   previewList: {
     display: 'grid',
     gap: '8px',
-    marginTop: '2px',
   },
   previewItem: {
     display: 'flex',
@@ -442,14 +493,22 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cta: {
     flexShrink: 0,
-    padding: '6px 10px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '7px',
+    padding: '8px 11px',
     borderRadius: '999px',
-    background: 'rgba(104, 183, 255, 0.14)',
-    color: '#a9d7ff',
-    fontSize: '0.78rem',
+    background: 'rgba(104, 183, 255, 0.18)',
+    color: '#c7e6ff',
+    border: '1px solid rgba(104, 183, 255, 0.28)',
+    fontSize: '0.76rem',
     fontWeight: 800,
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
+  },
+  ctaArrow: {
+    fontSize: '1rem',
+    lineHeight: 1,
   },
   empty: {
     padding: '14px 16px',

@@ -4,16 +4,17 @@ import { Departure, getDeviationText } from '../types';
 interface LiveBoardCardProps {
   entry: Departure;
   color: string;
+  isSoonest?: boolean;
 }
 
-function LiveBoardCard({ entry, color }: LiveBoardCardProps) {
+function LiveBoardCard({ entry, color, isSoonest = false }: LiveBoardCardProps) {
   const deviations = entry.deviations ?? [];
   const hasDeviations = entry.has_deviations || deviations.length > 0;
   const deviationText = hasDeviations ? getDeviationText(deviations[0]) || 'Possible delay' : '';
   const transportMode = entry.transport_mode ? entry.transport_mode.toUpperCase() : 'LIVE';
 
   return (
-    <div style={styles.card}>
+    <div style={isSoonest ? { ...styles.card, ...styles.cardPriority } : styles.card}>
       <div style={{ ...styles.lineNumber, backgroundColor: color }}>
         <span style={styles.lineNumberLabel}>{entry.line_number}</span>
         <span style={styles.modeTag}>{transportMode}</span>
@@ -27,13 +28,16 @@ function LiveBoardCard({ entry, color }: LiveBoardCardProps) {
 
         <div style={styles.bottomRow}>
           <div style={styles.meta}>{entry.expected_datetime}</div>
-          {hasDeviations ? (
-            <div style={styles.deviationWrap}>
-              <span style={styles.alert}>{deviationText}</span>
-            </div>
-          ) : (
-            <div style={styles.ok}>On track</div>
-          )}
+          <div style={styles.statusRow}>
+            {isSoonest && <span style={styles.nextBadge}>Next departure</span>}
+            {hasDeviations ? (
+              <div style={styles.deviationWrap}>
+                <span style={styles.alert}>{deviationText}</span>
+              </div>
+            ) : (
+              <div style={styles.ok}>On track</div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -50,6 +54,11 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '22px',
     border: '1px solid rgba(255, 255, 255, 0.09)',
     boxShadow: '0 18px 40px rgba(0, 0, 0, 0.12)',
+  },
+  cardPriority: {
+    border: '1px solid rgba(247, 185, 85, 0.55)',
+    background: 'linear-gradient(135deg, rgba(247, 185, 85, 0.14) 0%, rgba(255, 255, 255, 0.06) 65%)',
+    boxShadow: '0 20px 48px rgba(247, 185, 85, 0.12)',
   },
   lineNumber: {
     minWidth: '60px',
@@ -111,6 +120,23 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     gap: '12px',
     flexWrap: 'wrap',
+  },
+  statusRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: '6px',
+    flexWrap: 'wrap',
+  },
+  nextBadge: {
+    padding: '6px 10px',
+    borderRadius: '999px',
+    background: 'rgba(247, 185, 85, 0.2)',
+    color: '#ffe3b2',
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
   },
   meta: {
     color: 'var(--muted)',
