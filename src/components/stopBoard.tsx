@@ -114,7 +114,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
       : modeSections.filter((section) => section.mode === activeMode);
 
   const visibleItems = visibleSections.flatMap((section) => section.items.slice(0, 6));
-  const soonestVehicle = visibleItems.reduce<Departure | null>((soonest, current) => {
+  const soonestStop = visibleItems.reduce<Departure | null>((soonest, current) => {
     if (!soonest) {
       return current;
     }
@@ -157,7 +157,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
               key={`${entry.line_number}-${entry.destination}-${index}`}
               entry={entry}
               color={color}
-              isSoonest={entry === soonestVehicle}
+              isSoonest={entry === soonestStop}
             />
           ))}
         </div>
