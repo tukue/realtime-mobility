@@ -165,7 +165,7 @@ High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans →
 ## Features
 
 ### Live Dashboards
-Real-time departures grouped by transport mode (Bus, Metro, Train, Tram, Ship). Each card shows line number, destination, scheduled/expected time, and deviation status. Auto-refreshes every 30 seconds with manual refresh always available.
+Real-time travel grouped by transport mode (Bus, Metro, Train, Tram, Ship). Each card shows line number, destination, scheduled/expected time, and deviation status. Auto-refreshes every 30 seconds with manual refresh always available.
 
 ### Stop Search with Typeahead
 Async autocomplete search against SL's stop database. Returns stops with type metadata and site IDs. Recent stops (last 4) persist in localStorage for one-tap re-access.
