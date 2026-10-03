@@ -4,6 +4,8 @@
 
 A full-stack application connecting Stockholm's public transit data (SL Trafiklab APIs) to a responsive dark-theme dashboard. Built with React + TypeScript on the frontend and Python FastAPI on the backend, containerized with Docker, and deployed via CI/CD.
 
+**Live URL**: [https://realtime-mobility.onrender.com](https://realtime-mobility.onrender.com)
+
 ## System Architecture
 
 ```mermaid
@@ -253,7 +255,7 @@ graph LR
     CI --> Docker[Build Docker Image]
     Docker --> Scan[Trivy Vulnerability Scan]
     Scan --> Deploy[Render Deploy Hook]
-    Deploy --> Live[Production]
+    Deploy --> Live[Production<br/>realtime-mobility.onrender.com]
 ```
 
 The pipeline in `.github/workflows/ci.yml`:
@@ -261,7 +263,7 @@ The pipeline in `.github/workflows/ci.yml`:
 2. Runs Python test suite (7 test files)
 3. Builds the multi-stage Docker image
 4. Scans with Trivy for vulnerabilities
-5. Triggers Render deploy hook (only on `main`, only if scan passes)
+5. Triggers Render deploy hook (only on `main`, only if scan passes) — deploys to [https://realtime-mobility.onrender.com](https://realtime-mobility.onrender.com)
 
 ---
 
