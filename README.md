@@ -1,6 +1,6 @@
 # Stockholm Travel Planner
 
-**Real-time public transport information for Stockholm — live departure boards, nearby stops, service alerts, and journey planning across all SL transport modes.**
+**Real-time public transport information for Stockholm — live dashboards, nearby stops, service alerts, and journey planning across all SL transport modes.**
 
 A full-stack application connecting Stockholm's public transit data (SL Trafiklab APIs) to a responsive dark-theme dashboard. Built with React + TypeScript on the frontend and Python FastAPI on the backend, containerized with Docker, and deployed via CI/CD.
 
@@ -130,7 +130,7 @@ High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans →
 ### Architecture Decisions
 
 - **Backend: Python FastAPI** — Chosen for its native `asyncio` support, which is essential for non-blocking HTTP calls to upstream SL APIs and concurrent WebSocket connections. Automatic OpenAPI docs provide a built-in client for debugging.
-- **Frontend: React + TypeScript** — TypeScript catches schema mismatches between SL API responses and the UI at compile time. The component model maps naturally to the card-based departure board UI.
+- **Frontend: React + TypeScript** — TypeScript catches schema mismatches between SL API responses and the UI at compile time. The component model maps naturally to the card-based dashboard UI.
 - **WebSocket for alerts** — Service disruptions need real-time push. FastAPI's WebSocket support enables the backend to push filtered alerts only to subscribers of specific stops, avoiding client-side polling overhead.
 
 ### State & Data Management
@@ -157,14 +157,14 @@ High-level flow: **Developer pushes to GitHub → CI/CD builds, tests, scans →
 
 - **Connection pooling** — A shared `httpx.AsyncClient` (20 keepalive connections, 100 max) is created during app lifespan and injected via `Depends()`, avoiding per-request client creation.
 - **Selective polling** — The alert manager polls only for stops with active WebSocket subscribers, minimizing upstream API calls and server resource usage.
-- **30-second refresh cadence** — Departure boards auto-refresh at 30s, balancing freshness against SL API rate limits. Manual refresh is always available for immediate updates.
+- **30-second refresh cadence** — Dashboards auto-refresh at 30s, balancing freshness against SL API rate limits. Manual refresh is always available for immediate updates.
 - **Minimal bundle** — No router, no CSS framework, no state management library. The frontend ships only what it uses, keeping initial load time low.
 
 ---
 
 ## Features
 
-### Live Departure Boards
+### Live Dashboards
 Real-time departures grouped by transport mode (Bus, Metro, Train, Tram, Ship). Each card shows line number, destination, scheduled/expected time, and deviation status. Auto-refreshes every 30 seconds with manual refresh always available.
 
 ### Stop Search with Typeahead
@@ -196,7 +196,7 @@ Real-time status pill in the header polls `/api/health` every 30 seconds. Green/
 | `GET` | `/api/health` | Backend health check |
 | `GET` | `/api/realtime/search?query={text}` | Search stops/stations |
 | `GET` | `/api/realtime/liveboard/{site_id}` | Raw departure data |
-| `GET` | `/api/liveboard/format/{site_id}` | Formatted departure board |
+| `GET` | `/api/liveboard/format/{site_id}` | Formatted dashboard |
 | `GET` | `/api/nearby/stops?lat={}&lon={}` | Nearby stops ranked by distance |
 | `GET` | `/api/nearby/boards?lat={}&lon={}` | Nearby stops with departure previews |
 | `GET` | `/api/nearby/train-boards?lat={}&lon={}` | Nearby train/metro stations with previews |
@@ -274,7 +274,7 @@ The pipeline in `.github/workflows/ci.yml`:
 │   ├── main.py                 # FastAPI app (lifespan, middleware, exception handlers)
 │   ├── routers/
 │   │   ├── realtime.py         # Stop search + raw departures
-│   │   ├── liveboard.py        # Formatted departure boards
+│   │   ├── liveboard.py        # Formatted dashboards
 │   │   ├── nearby.py           # Geospatial nearby queries
 │   │   ├── situations.py       # Service alerts REST
 │   │   ├── alerts.py           # Alerts REST + WebSocket endpoint
@@ -297,7 +297,7 @@ The pipeline in `.github/workflows/ci.yml`:
 │   ├── main.tsx                # React entry point
 │   ├── components/
 │   │   ├── SearchBar.tsx       # Stop autocomplete
-│   │   ├── stopBoard.tsx       # Live departure board + mode filters
+│   │   ├── stopBoard.tsx       # Live dashboard + mode filters
 │   │   ├── LiveBoardCard.tsx   # Individual departure card
 │   │   ├── NearbyStops.tsx     # Nearby stops panel
 │   │   ├── FavoritesList.tsx   # Saved stops
