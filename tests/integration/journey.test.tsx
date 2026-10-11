@@ -72,7 +72,7 @@ describe('journey frontend/backend integration with sample Stockholm stations', 
     const trip = screen.getByRole('button', { name: /10:00.*10:10/ });
     expect(trip.textContent).toContain('10 min');
     expect(trip.textContent).toContain('1 change');
-    fireEvent.click(trip);
+    expect(trip.getAttribute('aria-expanded')).toBe('true');
     const details = document.getElementById(trip.getAttribute('aria-controls')!);
     expect(details?.textContent).toContain('T-Centralen');
     expect(details?.textContent).toContain('Skarpnäck');
