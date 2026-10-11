@@ -297,7 +297,7 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
       )}
       {result && result.trips.length === 0 && (
         <div style={styles.emptyBox}>
-          No routes found. Try another origin or destination.
+          No routes found. Try again with other stations.
           <button type="button" onClick={handleSearch} disabled={!canSearch} style={styles.retryBtn}>Try again</button>
         </div>
       )}
