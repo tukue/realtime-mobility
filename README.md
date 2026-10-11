@@ -330,3 +330,16 @@ Route availability depends on the existing SL journey backend configuration. Off
 ### Journey planning tests
 
 Run `npm test` for the frontend regression suite. It covers main-page access, source/destination selection by keyboard and pointer, request IDs, expandable trip details, edited-field and same-stop validation, error recovery, request timeouts, and stale-response cancellation. Tests mock stop search and journey responses; they do not contact SL or require API credentials. CI runs this suite before building the frontend.
+
+### Frontend/backend journey integration tests
+
+Install Node dependencies with `npm ci` and Python dependencies with
+`python3 -m pip install -r backend/requirements.txt`, then run
+`npm run test:integration`. Set `PYTHON=/path/to/venv/bin/python` when using a virtual environment.
+
+These tests run the real journey planner, stop-search client, FastAPI application,
+request validation, and transit response normalization together. Sample Odenplan,
+T-Centralen, and Slussen stations replace the external SL HTTP responses. They cover
+a journey with a transfer, expandable legs, empty results and retry, and invalid
+API requests. No network, transit credentials, listening server, or background
+alert polling is needed. CI runs them after installing Python dependencies.

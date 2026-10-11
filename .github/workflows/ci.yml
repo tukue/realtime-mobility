@@ -44,6 +44,9 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Run journey integration tests
+        run: npm run test:integration
+
       - name: Run tests
         working-directory: backend
         run: python -m unittest discover -s tests -p "test_*.py"
