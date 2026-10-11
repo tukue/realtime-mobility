@@ -10,7 +10,7 @@ The app should let a rider:
 - Reopen recent and saved stops in one tap
 - Understand whether the backend and live data are currently healthy
 
-This is not a full journey planner. It is a focused “check transit now” tool.
+Live travel dashboards remain the primary experience. A journey planning panel also lets riders compare routes between two selected stops.
 
 ## 2. Core Use Cases
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import SearchBar from './components/SearchBar';
 import StopBoard from './components/stopBoard';
+import JourneyPlanner from './components/JourneyPlanner';
 import FavoritesList from './components/FavoritesList';
 import NearbyStops from './components/NearbyStops';
 
@@ -175,6 +176,10 @@ function App() {
             Search a stop or station, save the ones you use often, or use nearby stops to jump straight into the closest live boards.
           </p>
 
+          <a href="#journey-heading" style={{ ...styles.locationButtonSecondary, display: 'inline-block', marginBottom: '16px', textDecoration: 'none' }}>
+            Plan a journey
+          </a>
+
           <div style={styles.pills}>
             <span style={styles.pill}>All transport modes</span>
             <span style={styles.pill}>30-second refresh</span>
@@ -324,6 +329,13 @@ function App() {
           </aside>
 
           <section style={styles.boardArea}>
+            <section aria-labelledby="journey-heading" style={isMobile ? { ...styles.card, padding: '16px' } : styles.card}>
+              <h2 id="journey-heading" tabIndex={-1} style={styles.cardLabel}>Plan a journey</h2>
+              <p style={{ ...styles.helperText, marginBottom: '16px' }}>
+                Choose an origin and destination to compare routes. Selecting a stop on the live board also sets your origin.
+              </p>
+              <JourneyPlanner initialOrigin={selectedSite ?? undefined} />
+            </section>
             {selectedSite ? (
               <StopBoard
                 site={selectedSite}
@@ -691,6 +703,9 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
   },
   boardArea: {
+    display: 'grid',
+    gap: '20px',
+    alignContent: 'start',
     minWidth: 0,
   },
   emptyState: {

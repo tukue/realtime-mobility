@@ -9,11 +9,8 @@ on:
 
 jobs:
   build:
-    name: Build and scan (Node ${{ matrix.node-version }})
+    name: Build and scan
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [24, 20]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,11 +20,15 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '24.x'
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
 
       - name: Build frontend
         run: npm run build
@@ -42,6 +43,9 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: pip install -r requirements.txt
+
+      - name: Run journey integration tests
+        run: npm run test:integration
 
       - name: Run tests
         working-directory: backend

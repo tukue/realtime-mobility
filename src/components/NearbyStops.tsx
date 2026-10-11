@@ -156,7 +156,7 @@ function NearbyStops({ startingPosition, latitude, longitude, onStopSelect }: Ne
             const departures = site.departures;
             const previewDeps = getPreviewDepartures(departures, hasCoordinates ? modeFilter : 'all');
             const hasPreview = previewDeps.length > 0;
-            const status = departures?.status === 'error' ? departures.error || 'Live departures unavailable' : null;
+            const status = departures?.status === 'error' ? departures.error || 'Live travel dashboards unavailable' : null;
             const modeSummary = buildModeSummary(departures);
 
             return (
@@ -605,10 +605,10 @@ function getPreviewDepartures(
 }
 
 function emptyText(mode: ModeFilter, hasCoordinates: boolean) {
-  if (!hasCoordinates) return 'No live departures right now.';
+  if (!hasCoordinates) return 'No live travel dashboards right now.';
   if (mode === 'bus') return 'No live bus departures right now.';
   if (mode === 'train') return 'No live train or metro departures right now.';
-  return 'No live departures right now.';
+  return 'No live travel dashboards right now.';
 }
 
 function buildModeSummary(departures?: NearbyStopBoard['departures']) {

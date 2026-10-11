@@ -87,7 +87,7 @@ graph TB
 
     subgraph ExternalSL["SL Trafiklab Open Data APIs"]
         SL1["SL Typeahead<br/>Stop Search"]
-        SL2["SL Realtidsinformation 4<br/>Live Departures"]
+        SL2["SL Realtidsinformation 4<br/>Live Travel Dashboards"]
         SL3["SL Deviations<br/>Service Alerts"]
         SL4["SL Journey Planner<br/>Trip Planning"]
     end
@@ -211,7 +211,7 @@ Real-time status pill in the header polls `/api/health` every 30 seconds. Green/
 
 ### Prerequisites
 
-- Node.js 24 (Node.js 20 also supported)
+- Node.js 24 (run `nvm install` and `nvm use` to select the latest Node 24 release)
 - Python 3.11+
 - SL API key ([Trafiklab](https://www.trafiklab.se/)) — optional for free mode
 
@@ -318,3 +318,28 @@ The pipeline in `.github/workflows/ci.yml`:
 ## License
 
 MIT
+
+## Accessible journey planning
+
+The main page includes a **Plan a journey** panel. Select origin and destination stops, then choose **Find routes**. Selecting a stop from search, recents, favorites, or nearby stops also sets the journey origin without clearing the destination. Journey results show departure and arrival times, duration, transfers, and expandable leg details.
+
+Stop suggestions support Arrow Up/Down, Enter to select, Escape to dismiss, and Tab to continue. Editing either field clears its previous stop selection and any old routes. Loading, search failures, journey failures, and empty results are announced to assistive technology. A failed journey can be retried, and changing either endpoint cancels the old request.
+
+Route availability depends on the existing SL journey backend configuration. Offline departure caches do not provide offline journey planning.
+
+### Journey planning tests
+
+Run `npm test` for the frontend regression suite. It covers main-page access, source/destination selection by keyboard and pointer, request IDs, expandable trip details, edited-field and same-stop validation, error recovery, request timeouts, and stale-response cancellation. Tests mock stop search and journey responses; they do not contact SL or require API credentials. CI runs this suite before building the frontend.
+
+### Frontend/backend journey integration tests
+
+Install Node dependencies with `npm ci` and Python dependencies with
+`python3 -m pip install -r backend/requirements.txt`, then run
+`npm run test:integration`. Set `PYTHON=/path/to/venv/bin/python` when using a virtual environment.
+
+These tests run the real journey planner, stop-search client, FastAPI application,
+request validation, and transit response normalization together. Sample Odenplan,
+T-Centralen, and Slussen stations replace the external SL HTTP responses. They cover
+a journey with a transfer, expandable legs, empty results and retry, and invalid
+API requests. No network, transit credentials, listening server, or background
+alert polling is needed. CI runs them after installing Python dependencies.
