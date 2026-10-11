@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from typing import Optional
 
-from services.exceptions import SLApiError
+from httpx import AsyncClient
+from services.dependencies import get_http_client
 from services.journey_service import plan_journey
 
 router = APIRouter()
@@ -30,7 +31,7 @@ class JourneyRequest(BaseModel):
 
 
 @router.post("/plan")
-async def plan(req: JourneyRequest):
+async def plan(req: JourneyRequest, client: AsyncClient = Depends(get_http_client)):
     if req.origin_id == req.destination_id:
         raise HTTPException(status_code=400, detail="origin_id and destination_id must be different")
     return await plan_journey(
@@ -38,4 +39,5 @@ async def plan(req: JourneyRequest):
         req.destination_id,
         req.datetime,
         req.max_changes,
+        client=client,
     )
