@@ -349,3 +349,24 @@ unrecognized response schemas instead of presenting them as empty results.
 Deployments with an explicit `SL_JOURNEY_URL` must update it to the v2 trips URL.
 Synthetic fixtures verify the wire contract; live provider verification remains
 necessary to confirm current route availability.
+
+### 14.9 Usability feedback and validation
+
+The station-search count was mistaken for a completed route search. Suggestions
+previously disappeared on input blur while the count stayed visible, leaving
+unselected endpoints and an unavailable Find routes action. Suggestions now use
+normal document flow and remain visible until selection or Escape. Selection
+instructions explain the remaining action instead of relying on the count alone.
+
+Successful journeys now have a prominent count banner, a focusable heading that
+scrolls into view, numbered route cards, and explicit Show details / Hide details
+labels. The first itinerary opens automatically. A search result generation resets
+card expansion even when React batches a fast repeat request; this behavior was
+caught and verified by a regression test. Empty and failed requests preserve
+input focus rather than moving it to a nonexistent results heading.
+
+On 11 October 2026, the user confirmed the feature was working following these
+improvements, in the context of the reported Norgegatan → Sollentuna search.
+The latest local frontend run passed 25 tests and the production build passed.
+This user confirmation complements the fixtures; it does not establish a complete
+browser, screen-reader, or live-provider compatibility matrix.
