@@ -318,3 +318,11 @@ The pipeline in `.github/workflows/ci.yml`:
 ## License
 
 MIT
+
+## Accessible journey planning
+
+The main page includes a **Plan a journey** panel. Select origin and destination stops, then choose **Find routes**. Selecting a stop from search, recents, favorites, or nearby stops also sets the journey origin without clearing the destination. Journey results show departure and arrival times, duration, transfers, and expandable leg details.
+
+Stop suggestions support Arrow Up/Down, Enter to select, Escape to dismiss, and Tab to continue. Editing either field clears its previous stop selection and any old routes. Loading, search failures, journey failures, and empty results are announced to assistive technology. A failed journey can be retried, and changing either endpoint cancels the old request.
+
+Route availability depends on the existing SL journey backend configuration. Offline departure caches do not provide offline journey planning.

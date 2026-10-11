@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useId, useRef, useState } from 'react'
 import { Site } from '../types'
 import { searchStops } from '../lib/stopSearch'
 
@@ -30,39 +30,49 @@ interface StopInputProps {
   label: string
   inputId: string
   value: string
+  selected: Site | null
   onChange: (val: string) => void
   onSelect: (site: Site) => void
 }
 
-function StopInput({ label, inputId, value, onChange, onSelect }: StopInputProps) {
+function StopInput({ label, inputId, value, selected, onChange, onSelect }: StopInputProps) {
   const [results, setResults] = useState<Site[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [searched, setSearched] = useState(false)
   const [open, setOpen] = useState(false)
-  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const listId = `${inputId}-results`
+  const statusId = `${inputId}-status`
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value
-    onChange(q)
-    if (timerRef.current) clearTimeout(timerRef.current)
-    if (q.length < 2) { setResults([]); setOpen(false); return }
-    timerRef.current = setTimeout(async () => {
-      setLoading(true)
+  useEffect(() => {
+    let cancelled = false
+    setResults([])
+    setError(null)
+    setSearched(false)
+    setActiveIndex(-1)
+    setLoading(false)
+    if (selected || value.trim().length < 2) return
+    setLoading(true)
+    const timer = window.setTimeout(async () => {
       try {
-        const sites = await searchStops(q)
-        setResults(sites)
-        setOpen(true)
+        const sites = await searchStops(value.trim())
+        if (!cancelled) { setResults(sites); setSearched(true) }
+      } catch {
+        if (!cancelled) setError('Stop search is unavailable. Edit the search to try again.')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }, 300)
-  }
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [value, selected])
 
-  const handleSelect = (site: Site) => {
+  const choose = (site: Site) => {
     onSelect(site)
-    onChange(site.Name)
     setOpen(false)
-    setResults([])
+    setActiveIndex(-1)
   }
+  const expanded = open && results.length > 0
 
   return (
     <div style={styles.inputWrap}>
@@ -71,22 +81,47 @@ function StopInput({ label, inputId, value, onChange, onSelect }: StopInputProps
         <input
           id={inputId}
           type="text"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={expanded}
+          aria-controls={expanded ? listId : undefined}
+          aria-activedescendant={expanded && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+          aria-describedby={statusId}
           value={value}
-          onChange={handleChange}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onChange={e => { onChange(e.target.value); setOpen(true); setActiveIndex(-1) }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => { setOpen(false); setActiveIndex(-1) }}
+          onKeyDown={e => {
+            if (e.key === 'Escape') { setOpen(false); setActiveIndex(-1) }
+            if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && results.length) {
+              e.preventDefault()
+              setOpen(true)
+              setActiveIndex(index => e.key === 'ArrowDown'
+                ? (index + 1) % results.length
+                : (index <= 0 ? results.length - 1 : index - 1))
+            }
+            if (e.key === 'Enter' && expanded && activeIndex >= 0) {
+              e.preventDefault()
+              choose(results[activeIndex])
+            }
+          }}
           placeholder={`Search ${label.toLowerCase()}...`}
           style={styles.input}
           autoComplete="off"
         />
-        {loading && <span style={styles.inputLoader}>...</span>}
-        {open && results.length > 0 && (
-          <div style={styles.dropdown}>
-            {results.map(site => (
+        {expanded && (
+          <div id={listId} role="listbox" aria-label={`${label} stops`} style={styles.dropdown}>
+            {results.map((site, index) => (
               <button
                 key={site.SiteId}
+                id={`${listId}-${index}`}
+                role="option"
+                aria-selected={activeIndex === index}
+                tabIndex={-1}
                 type="button"
-                onMouseDown={() => handleSelect(site)}
-                style={styles.dropdownItem}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => choose(site)}
+                style={activeIndex === index ? { ...styles.dropdownItem, background: 'rgba(104,183,255,0.18)' } : styles.dropdownItem}
               >
                 <span style={styles.dropdownName}>{site.Name}</span>
                 <span style={styles.dropdownType}>{site.Type}</span>
@@ -95,12 +130,18 @@ function StopInput({ label, inputId, value, onChange, onSelect }: StopInputProps
           </div>
         )}
       </div>
+      <p id={statusId} role="status" style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+        {loading ? 'Searching stops...' : error ?? (selected ? `${selected.Name} selected.` : searched
+          ? results.length ? `${results.length} stops found. Use arrow keys and Enter to select.` : 'No stops found. Try another name.'
+          : 'Type at least two characters, then select a stop.')}
+      </p>
     </div>
   )
 }
 
 function TripCard({ trip }: { trip: Trip }) {
   const [expanded, setExpanded] = useState(false)
+  const detailsId = useId()
 
   return (
     <div style={styles.tripCard}>
@@ -109,6 +150,7 @@ function TripCard({ trip }: { trip: Trip }) {
         onClick={() => setExpanded(v => !v)}
         style={styles.tripHeader}
         aria-expanded={expanded}
+        aria-controls={detailsId}
       >
         <div style={styles.tripMeta}>
           <span style={styles.tripTime}>{trip.departure_time} → {trip.arrival_time}</span>
@@ -124,7 +166,7 @@ function TripCard({ trip }: { trip: Trip }) {
       </button>
 
       {expanded && (
-        <div style={styles.legList}>
+        <div id={detailsId} style={styles.legList}>
           {trip.legs.map((leg, i) => (
             <div key={i} style={styles.leg}>
               <div style={styles.legLine}>
@@ -161,13 +203,38 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleOriginSelect = (site: Site) => {
-    setOriginSite(site)
-    onStopSelect?.(site)
+  const requestId = useRef(0)
+  const controller = useRef<AbortController | null>(null)
+
+  const invalidate = () => {
+    requestId.current += 1
+    controller.current?.abort()
+    setLoading(false)
+    setResult(null)
+    setError(null)
   }
 
+  useEffect(() => {
+    invalidate()
+    setOriginSite(initialOrigin ?? null)
+    setOriginText(initialOrigin?.Name ?? '')
+  }, [initialOrigin?.SiteId])
+
+  useEffect(() => () => {
+    requestId.current += 1
+    controller.current?.abort()
+  }, [])
+
+  const sameStop = !!originSite && originSite.SiteId === destSite?.SiteId
+  const canSearch = !!originSite && !!destSite && !sameStop && !loading
+
   const handleSearch = async () => {
-    if (!originSite || !destSite) return
+    if (!canSearch || !originSite || !destSite) return
+    const currentRequest = ++requestId.current
+    controller.current?.abort()
+    const pending = new AbortController()
+    controller.current = pending
+    const timeout = window.setTimeout(() => pending.abort(), 15000)
     setLoading(true)
     setError(null)
     setResult(null)
@@ -176,65 +243,71 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ origin_id: originSite.SiteId, destination_id: destSite.SiteId }),
+        signal: pending.signal,
       })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.detail || `HTTP ${res.status}`)
+      if (!res.ok) throw new Error('Journey service unavailable')
+      const data: JourneyResult = await res.json()
+      if (!Array.isArray(data.trips)) throw new Error('Invalid journey response')
+      if (currentRequest === requestId.current) setResult(data)
+    } catch {
+      if (currentRequest === requestId.current) {
+        setError('Unable to load routes. Check your connection and try again.')
       }
-      setResult(await res.json())
-    } catch (e) {
-      setError(String(e))
     } finally {
-      setLoading(false)
+      window.clearTimeout(timeout)
+      if (currentRequest === requestId.current) setLoading(false)
     }
   }
 
   return (
     <div style={styles.container}>
-      <div style={styles.inputs}>
-        <StopInput
-          label="Origin"
-          inputId="journey-origin"
-          value={originText}
-          onChange={setOriginText}
-          onSelect={handleOriginSelect}
-        />
-        <StopInput
-          label="Destination"
-          inputId="journey-destination"
-          value={destText}
-          onChange={setDestText}
-          onSelect={setDestSite}
-        />
+      <form onSubmit={e => { e.preventDefault(); void handleSearch() }} aria-label="Journey search">
+        <div style={styles.inputs}>
+          <StopInput
+            label="Origin"
+            inputId="journey-origin"
+            value={originText}
+            selected={originSite}
+            onChange={text => { invalidate(); setOriginText(text); setOriginSite(null) }}
+            onSelect={site => { invalidate(); setOriginSite(site); setOriginText(site.Name); onStopSelect?.(site) }}
+          />
+          <StopInput
+            label="Destination"
+            inputId="journey-destination"
+            value={destText}
+            selected={destSite}
+            onChange={text => { invalidate(); setDestText(text); setDestSite(null) }}
+            onSelect={site => { invalidate(); setDestSite(site); setDestText(site.Name) }}
+          />
+        </div>
+        {sameStop && <p role="alert" style={styles.errorBox}>Choose a destination different from your origin.</p>}
+        <button type="submit" disabled={!canSearch} style={{ ...styles.searchBtn, marginTop: '14px', opacity: canSearch || loading ? 1 : 0.55 }}>
+          {loading ? 'Searching...' : 'Find routes'}
+        </button>
+      </form>
+
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {loading ? 'Finding routes...' : result ? `${result.trips.length} routes found.` : ''}
       </div>
-
-      <button
-        type="button"
-        onClick={handleSearch}
-        disabled={!originSite || !destSite || loading}
-        style={styles.searchBtn}
-      >
-        {loading ? 'Searching...' : 'Find routes'}
-      </button>
-
-      {error && <div style={styles.errorBox}>{error}</div>}
-
-      {result && result.trips.length === 0 && (
-        <div style={styles.emptyBox}>
-          No routes found for this journey.
-          <button type="button" onClick={handleSearch} style={styles.retryBtn}>Try again</button>
+      {error && (
+        <div role="alert" style={styles.errorBox}>
+          {error}
+          <button type="button" onClick={handleSearch} disabled={!canSearch} style={styles.retryBtn}>Try again</button>
         </div>
       )}
-
-      {result && result.trips.length > 0 && (
-        <div style={styles.results}>
-          <div style={styles.resultsHeader}>
-            {result.origin_name || originSite?.Name} → {result.destination_name || destSite?.Name}
-          </div>
-          {result.trips.map((trip, i) => (
-            <TripCard key={i} trip={trip} />
-          ))}
+      {result && result.trips.length === 0 && (
+        <div style={styles.emptyBox}>
+          No routes found. Try another origin or destination.
+          <button type="button" onClick={handleSearch} disabled={!canSearch} style={styles.retryBtn}>Try again</button>
         </div>
+      )}
+      {result && result.trips.length > 0 && (
+        <section aria-label="Journey results" style={styles.results}>
+          <h3 style={styles.resultsHeader}>
+            {result.origin_name || originSite?.Name} → {result.destination_name || destSite?.Name}
+          </h3>
+          {result.trips.map((trip, i) => <TripCard key={i} trip={trip} />)}
+        </section>
       )}
     </div>
   )
@@ -251,7 +324,7 @@ const styles: Record<string, React.CSSProperties> = {
   input: {
     width: '100%', padding: '12px 16px', fontSize: '15px',
     color: 'var(--text)', border: '1px solid var(--border)',
-    borderRadius: '14px', background: 'rgba(255,255,255,0.05)', outline: 'none',
+    borderRadius: '14px', background: 'rgba(255,255,255,0.05)',
   },
   inputLoader: { position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' },
   dropdown: {
