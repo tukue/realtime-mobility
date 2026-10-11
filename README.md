@@ -326,3 +326,7 @@ The main page includes a **Plan a journey** panel. Select origin and destination
 Stop suggestions support Arrow Up/Down, Enter to select, Escape to dismiss, and Tab to continue. Editing either field clears its previous stop selection and any old routes. Loading, search failures, journey failures, and empty results are announced to assistive technology. A failed journey can be retried, and changing either endpoint cancels the old request.
 
 Route availability depends on the existing SL journey backend configuration. Offline departure caches do not provide offline journey planning.
+
+### Journey planning tests
+
+Run `npm test` for the frontend regression suite. It covers main-page access, source/destination selection by keyboard and pointer, request IDs, expandable trip details, edited-field and same-stop validation, error recovery, request timeouts, and stale-response cancellation. Tests mock stop search and journey responses; they do not contact SL or require API credentials. CI runs this suite before building the frontend.
