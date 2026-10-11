@@ -29,22 +29,19 @@ def upstream(request):
     if request.url.path == httpx.URL(settings.sl_free_sites_url).path:
         return httpx.Response(200, json=STATIONS)
     if request.url.path == httpx.URL(settings.sl_journey_url).path:
-        assert request.url.params['originId'] == '9117'
-        assert request.url.params['destId'] == '9192'
-        legs = [
-            {"Origin": {"name": "Odenplan", "time": "10:00"},
-             "Destination": {"name": "T-Centralen", "time": "10:04"},
-             "Product": {"num": "17", "catOut": "METRO"}, "direction": "Skarpnäck"},
-            {"Origin": {"name": "T-Centralen", "time": "10:06"},
-             "Destination": {"name": "Slussen", "time": "10:10"},
-             "Product": {"num": "14", "catOut": "METRO"}, "direction": "Fruängen"},
-        ]
-        trip = {"Origin": legs[0]['Origin'], "Destination": legs[-1]['Destination'],
-                "dur": "10", "chg": 1, "LegList": {"Leg": legs}}
-        return httpx.Response(200, json={
-            "Origin": {"name": "Odenplan"}, "Destination": {"name": "Slussen"},
-            "Trip": [] if input_request.get('empty') else [trip],
-        })
+        assert request.url.params['name_origin'] == '9091001000009117'
+        assert request.url.params['name_destination'] == '9091001000009192'
+        def leg(origin, destination, dep, arr, line, direction):
+            return {
+                'origin': {'name': origin, 'departureTimePlanned': f'2026-10-11T{dep}:00+02:00'},
+                'destination': {'name': destination, 'arrivalTimePlanned': f'2026-10-11T{arr}:00+02:00'},
+                'transportation': {'number': line, 'product': {'class': 2}, 'destination': {'name': direction}},
+            }
+        trip = {'tripDuration': 600, 'interchanges': 1, 'legs': [
+            leg('Odenplan', 'T-Centralen', '10:00', '10:04', '17', 'Skarpnäck'),
+            leg('T-Centralen', 'Slussen', '10:06', '10:10', '14', 'Fruängen'),
+        ]}
+        return httpx.Response(200, json={'journeys': [] if input_request.get('empty') else [trip]})
     raise AssertionError(f'Unexpected external request: {request.url}')
 
 

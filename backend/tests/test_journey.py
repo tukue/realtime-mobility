@@ -35,23 +35,18 @@ def _raw_leg(
     line="17", mode="TRAM", direction="Djurgården",
 ) -> dict:
     return {
-        "Origin": {"name": origin, "time": dep},
-        "Destination": {"name": destination, "time": arr},
-        "Product": {"num": line, "catOut": mode},
-        "direction": direction,
+        "origin": {"name": origin, "departureTimePlanned": f"2026-10-11T{dep}:00+02:00"},
+        "destination": {"name": destination, "arrivalTimePlanned": f"2026-10-11T{arr}:00+02:00"},
+        "transportation": {"number": line, "product": {"name": mode}, "destination": {"name": direction}},
     }
 
 
 def _raw_trip(dep="10:00", arr="10:30", dur="30", chg=1, legs=None) -> dict:
     if legs is None:
         legs = [_raw_leg()]
-    return {
-        "Origin": {"name": "T-Centralen", "time": dep},
-        "Destination": {"name": "Slussen", "time": arr},
-        "dur": dur,
-        "chg": chg,
-        "LegList": {"Leg": legs},
-    }
+    legs[0]["origin"]["departureTimePlanned"] = f"2026-10-11T{dep}:00+02:00"
+    legs[-1]["destination"]["arrivalTimePlanned"] = f"2026-10-11T{arr}:00+02:00"
+    return {"tripDuration": int(dur) * 60, "interchanges": chg, "legs": legs}
 
 
 
@@ -80,17 +75,17 @@ class TestNormalizeLeg(unittest.TestCase):
             self.assertEqual(leg[field], "", f"Expected '' for {field}")
 
     def test_partial_leg_does_not_raise(self):
-        leg = normalize_leg({"Origin": {"name": "Odenplan"}})
+        leg = normalize_leg({"origin": {"name": "Odenplan"}})
         self.assertEqual(leg["origin"], "Odenplan")
         self.assertEqual(leg["destination"], "")
 
     def test_transport_mode_is_lowercased(self):
-        leg = normalize_leg({"Product": {"catOut": "METRO"}})
+        leg = normalize_leg({"transportation": {"product": {"class": 2}}})
         self.assertEqual(leg["transport_mode"], "metro")
 
     def test_all_string_fields_are_strings(self):
         """Property: all string fields are non-None strings for any dict input."""
-        for raw in [{}, _raw_leg(), {"Origin": None, "Product": None}]:
+        for raw in [{}, _raw_leg(), {"origin": None, "transportation": None}]:
             leg = normalize_leg(raw)
             for field in ("origin", "destination", "departure_time",
                           "arrival_time", "line_number", "transport_mode", "direction"):
@@ -109,7 +104,7 @@ class TestPlanJourney(unittest.IsolatedAsyncioTestCase):
     async def test_returns_sorted_trips(self):
         trips = [_raw_trip(dep="10:30"), _raw_trip(dep="10:00"), _raw_trip(dep="10:15")]
         with patch("services.journey_service._fetch_json",
-                   new=AsyncMock(return_value={"Trip": trips})):
+                   new=AsyncMock(return_value={"journeys": trips})):
             result = await plan_journey("1001", "2002")
 
         dep_times = [t["departure_time"] for t in result["trips"]]
@@ -118,25 +113,24 @@ class TestPlanJourney(unittest.IsolatedAsyncioTestCase):
     async def test_returns_at_most_5_trips(self):
         trips = [_raw_trip(dep=f"10:{i:02d}") for i in range(8)]
         with patch("services.journey_service._fetch_json",
-                   new=AsyncMock(return_value={"Trip": trips})):
+                   new=AsyncMock(return_value={"journeys": trips})):
             result = await plan_journey("1001", "2002")
 
         self.assertLessEqual(len(result["trips"]), 5)
 
     async def test_empty_trips_when_no_routes(self):
         with patch("services.journey_service._fetch_json",
-                   new=AsyncMock(return_value={"Trip": []})):
+                   new=AsyncMock(return_value={"journeys": []})):
             result = await plan_journey("1001", "2002")
 
         self.assertEqual(result["trips"], [])
 
-    async def test_empty_trips_on_sl_api_error(self):
+    async def test_propagates_sl_api_error(self):
         from services.exceptions import SLApiError
         with patch("services.journey_service._fetch_json",
                    new=AsyncMock(side_effect=SLApiError("timeout", 504))):
-            result = await plan_journey("1001", "2002")
-
-        self.assertEqual(result["trips"], [])
+            with self.assertRaises(SLApiError):
+                await plan_journey("1001", "2002")
 
     async def test_raises_on_same_origin_destination(self):
         with self.assertRaises(ValueError):
@@ -144,19 +138,19 @@ class TestPlanJourney(unittest.IsolatedAsyncioTestCase):
 
     async def test_max_changes_clamped_to_0_5(self):
         with patch("services.journey_service._fetch_json",
-                   new=AsyncMock(return_value={"Trip": []})) as mock:
+                   new=AsyncMock(return_value={"journeys": []})) as mock:
             await plan_journey("1001", "2002", max_changes=99)
             params = mock.call_args[0][1]
-            self.assertLessEqual(params["maxChanges"], 5)
+            self.assertLessEqual(params["max_changes"], 5)
 
             await plan_journey("1001", "2002", max_changes=-3)
             params = mock.call_args[0][1]
-            self.assertGreaterEqual(params["maxChanges"], 0)
+            self.assertGreaterEqual(params["max_changes"], 0)
 
     async def test_each_trip_has_at_least_one_leg(self):
         trips = [_raw_trip()]
         with patch("services.journey_service._fetch_json",
-                   new=AsyncMock(return_value={"Trip": trips})):
+                   new=AsyncMock(return_value={"journeys": trips})):
             result = await plan_journey("1001", "2002")
 
         for trip in result["trips"]:
@@ -169,7 +163,7 @@ class TestPlanJourney(unittest.IsolatedAsyncioTestCase):
         random.shuffle(times)
         trips = [_raw_trip(dep=t) for t in times[:6]]
         with patch("services.journey_service._fetch_json",
-                   new=AsyncMock(return_value={"Trip": trips})):
+                   new=AsyncMock(return_value={"journeys": trips})):
             result = await plan_journey("1001", "2002")
 
         dep_times = [t["departure_time"] for t in result["trips"]]

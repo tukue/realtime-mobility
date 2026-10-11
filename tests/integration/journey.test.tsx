@@ -67,7 +67,7 @@ describe('journey frontend/backend integration with sample Stockholm stations', 
     render(<JourneyPlanner />);
     await plan();
     expect(requests).toHaveLength(3);
-    expect(requests[2].upstream[0].params).toMatchObject({ originId: '9117', destId: '9192' });
+    expect(requests[2].upstream[0].params).toMatchObject({ name_origin: '9091001000009117', name_destination: '9091001000009192' });
     expect(screen.getByRole('region', { name: 'Journey results' }).textContent).toContain('Odenplan → Slussen');
     const trip = screen.getByRole('button', { name: /10:00.*10:10/ });
     expect(trip.textContent).toContain('10 min');

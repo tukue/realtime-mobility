@@ -321,11 +321,16 @@ MIT
 
 ## Accessible journey planning
 
+Design decisions, tradeoffs, and testing limits for PR #34 are documented in
+[the journey planning design notes](design.md#14-pr-34-accessible-journey-planning-design).
+
 The main page includes a **Plan a journey** panel. Select origin and destination stops, then choose **Find routes**. Selecting a stop from search, recents, favorites, or nearby stops also sets the journey origin without clearing the destination. Journey results show departure and arrival times, duration, transfers, and expandable leg details.
 
 Stop suggestions support Arrow Up/Down, Enter to select, Escape to dismiss, and Tab to continue. Editing either field clears its previous stop selection and any old routes. Loading, search failures, journey failures, and empty results are announced to assistive technology. A failed journey can be retried, and changing either endpoint cancels the old request.
 
-Route availability depends on the existing SL journey backend configuration. Offline departure caches do not provide offline journey planning.
+Journey planning uses SL Journey-planner v2 (`https://journeyplanner.integration.sl.se/v2/trips`), which does not require an API key. If deployment configuration overrides `SL_JOURNEY_URL`, set it to that URL and redeploy; the old v1 URL and response format are not supported. The backend converts short SL Transport site IDs to global site IDs, normalizes v2 journeys, and displays times in Europe/Stockholm. Provider failures return an error rather than a successful empty route list. Offline departure caches do not provide offline journey planning.
+
+Provider contract: [SL Journey-planner v2 documentation](https://www.trafiklab.se/api/our-apis/sl/journey-planner-2/). Backend regression tests include synthetic Norgegatan → Sollentuna timetable data; their fixture station IDs and times do not assert current real-world route availability.
 
 ### Journey planning tests
 
