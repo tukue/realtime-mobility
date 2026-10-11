@@ -1,4 +1,4 @@
-FROM node:20.20-bookworm-slim AS frontend-builder
+FROM node:24-bookworm-slim AS frontend-builder
 WORKDIR /app
 
 COPY package*.json ./

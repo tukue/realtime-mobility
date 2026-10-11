@@ -211,7 +211,7 @@ Real-time status pill in the header polls `/api/health` every 30 seconds. Green/
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 24 (run `nvm install` and `nvm use` to select the latest Node 24 release)
 - Python 3.11+
 - SL API key ([Trafiklab](https://www.trafiklab.se/)) — optional for free mode
 
