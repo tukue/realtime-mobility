@@ -71,3 +71,54 @@ class JourneyV2Tests(unittest.IsolatedAsyncioTestCase):
         })):
             result = await plan_journey('1234', '5678')
         self.assertEqual([t['departure_time'] for t in result['trips']], ['23:30', '00:30'])
+
+    async def test_malformed_journeys_return_provider_errors_instead_of_crashing(self):
+        for malformed in [None, 'bad', {}, {'legs': {}}, {'legs': [None]},
+                          {'legs': [{}]}, {'legs': [{'origin': None, 'destination': {}}]},
+                          {'legs': [{'origin': 'bad', 'destination': {}}]},
+                          {'legs': [{'origin': {}, 'destination': []}]}]:
+            with self.subTest(journey=malformed), patch(
+                'services.journey_service._fetch_json',
+                new=AsyncMock(return_value={'journeys': [malformed, journey()]}),
+            ):
+                with self.assertRaises(SLApiError) as raised:
+                    await plan_journey('1234', '5678')
+                self.assertEqual(raised.exception.status_code, 502)
+
+    async def test_malformed_trip_details_return_provider_errors(self):
+        for field, value in [('tripDuration', 'bad'), ('interchanges', 'bad'),
+                             ('tripDuration', float('inf'))]:
+            malformed = journey()
+            malformed[field] = value
+            with self.subTest(field=field, value=value), patch(
+                'services.journey_service._fetch_json', new=AsyncMock(return_value={'journeys': [malformed]}),
+            ):
+                with self.assertRaises(SLApiError) as raised:
+                    await plan_journey('1234', '5678')
+                self.assertEqual(raised.exception.status_code, 502)
+
+    async def test_malformed_timestamp_returns_provider_error(self):
+        for value in [123, 'invalid-date']:
+            malformed = journey()
+            malformed['legs'][0]['origin']['departureTimePlanned'] = value
+            with self.subTest(timestamp=value), patch(
+                'services.journey_service._fetch_json', new=AsyncMock(return_value={'journeys': [malformed]}),
+            ):
+                with self.assertRaises(SLApiError):
+                    await plan_journey('1234', '5678')
+
+    async def test_empty_journeys_and_empty_legs_have_empty_names(self):
+        for journeys in [[], [{'legs': []}]]:
+            with self.subTest(journeys=journeys), patch(
+                'services.journey_service._fetch_json', new=AsyncMock(return_value={'journeys': journeys}),
+            ):
+                result = await plan_journey('1234', '5678')
+            self.assertEqual(result, {'trips': [], 'origin_name': '', 'destination_name': ''})
+
+    async def test_invalid_top_level_response_is_a_provider_error(self):
+        for payload in [None, [], 'bad', {'journeys': [], 'systemMessages': 'bad'}]:
+            with self.subTest(payload=payload), patch(
+                'services.journey_service._fetch_json', new=AsyncMock(return_value=payload),
+            ):
+                with self.assertRaises(SLApiError):
+                    await plan_journey('1234', '5678')

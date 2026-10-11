@@ -81,28 +81,55 @@ async def plan_journey(
 
     # Provider failures must remain errors, not successful "no routes" responses.
     data = await _fetch_json(get_sl_journey_url(), params, client=client, require_api_key=False)
+    if not isinstance(data, dict):
+        raise SLApiError('Journey provider returned an invalid response.', 502)
     raw_journeys = data.get('journeys')
     if not isinstance(raw_journeys, list):
         raise SLApiError('Journey provider returned an invalid response.', 502)
-    if not raw_journeys and any(m.get('type') == 'error' for m in data.get('systemMessages', [])):
+    messages = data.get('systemMessages') or []
+    if not isinstance(messages, list):
+        raise SLApiError('Journey provider returned invalid system messages.', 502)
+    if not raw_journeys and any(isinstance(m, dict) and m.get('type') == 'error' for m in messages):
         raise SLApiError('Journey provider could not calculate routes. Please try again.', 502)
 
-    journeys = sorted((j for j in raw_journeys if j.get('legs')),
-                      key=lambda j: j['legs'][0]['origin'].get('departureTimeEstimated')
-                      or j['legs'][0]['origin'].get('departureTimePlanned') or '')[:5]
+    # Validate the provider structure before sorting or dereferencing leg fields.
+    journeys = []
+    for journey in raw_journeys:
+        if not isinstance(journey, dict) or not isinstance(journey.get('legs'), list):
+            raise SLApiError('Journey provider returned invalid journey legs.', 502)
+        if not journey['legs']:
+            continue
+        if any(not isinstance(leg, dict)
+               or not isinstance(leg.get('origin'), dict)
+               or not isinstance(leg.get('destination'), dict) for leg in journey['legs']):
+            raise SLApiError('Journey provider returned invalid journey endpoints.', 502)
+        journeys.append(journey)
+
+    def departure(journey: dict[str, Any]) -> str:
+        origin = journey['legs'][0]['origin']
+        value = origin.get('departureTimeEstimated') or origin.get('departureTimePlanned') or ''
+        if not isinstance(value, str):
+            raise SLApiError('Journey provider returned an invalid departure time.', 502)
+        return value
+
+    journeys.sort(key=departure)
     trips = []
-    for journey in journeys:
-        legs = [normalize_leg(leg) for leg in journey['legs']]
-        duration = journey.get('tripRtDuration')
-        if duration is None:
-            duration = journey.get('tripDuration') or 0
-        trips.append({
-            'departure_time': legs[0]['departure_time'], 'arrival_time': legs[-1]['arrival_time'],
-            'duration_minutes': math.ceil(float(duration) / 60),
-            'changes': int(journey.get('interchanges') or 0), 'legs': legs,
-        })
+    for journey in journeys[:5]:
+        try:
+            legs = [normalize_leg(leg) for leg in journey['legs']]
+            duration = journey.get('tripRtDuration')
+            if duration is None:
+                duration = journey.get('tripDuration') or 0
+            trips.append({
+                'departure_time': legs[0]['departure_time'], 'arrival_time': legs[-1]['arrival_time'],
+                'duration_minutes': math.ceil(float(duration) / 60),
+                'changes': int(journey.get('interchanges') or 0), 'legs': legs,
+            })
+        except (AttributeError, TypeError, ValueError, OverflowError) as exc:
+            raise SLApiError('Journey provider returned invalid trip details.', 502) from exc
+    first_legs = trips[0]['legs'] if trips else []
     return {
         'trips': trips,
-        'origin_name': trips[0]['legs'][0]['origin'] if trips else '',
-        'destination_name': trips[0]['legs'][-1]['destination'] if trips else '',
+        'origin_name': first_legs[0]['origin'] if first_legs else '',
+        'destination_name': first_legs[-1]['destination'] if first_legs else '',
     }
