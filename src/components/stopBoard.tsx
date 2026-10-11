@@ -169,7 +169,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
     return (
       <div style={styles.container}>
         <div style={styles.loadingWrap}>
-          <div style={styles.loadingTitle}>Loading live departures</div>
+          <div style={styles.loadingTitle}>Loading live travel dashboards</div>
           <div style={styles.loadingText}>Fetching the next transport options for {site.Name}.</div>
         </div>
       </div>
@@ -197,7 +197,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
           <div style={styles.stopLabel}>Selected stop</div>
           <h2 style={styles.title}>{site.Name}</h2>
           <div style={styles.routeLine}>
-            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live departures for ${site.Name}`}
+            {startingLocation ? `${startingLocation} to ${site.Name}` : `Live travel dashboards for ${site.Name}`}
           </div>
           <div style={styles.metaRow}>
             <span style={styles.metaChip}>{site.Type}</span>
@@ -211,7 +211,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
               {refreshing ? 'Refreshing now' : 'Auto refresh on'}
             </span>
             <span style={{ ...styles.metaChip, ...styles.metaChipUpdated }}>{`Updated ${lastUpdatedLabel}`}</span>
-            <span style={{ ...styles.metaChip, ...styles.metaChipCount }}>{totalDepartures} live departures</span>
+            <span style={{ ...styles.metaChip, ...styles.metaChipCount }}>{totalDepartures} live travel dashboards</span>
           </div>
         </div>
 
@@ -272,7 +272,7 @@ function StopBoard({ site, startingLocation, isFavorite, onToggleFavorite }: Sto
 
       {departures && visibleSections.length === 0 && (
         <div style={styles.noDepartures}>
-          No live departures are available for this mode right now.
+          No live travel dashboards are available for this mode right now.
         </div>
       )}
     </div>

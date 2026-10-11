@@ -87,7 +87,7 @@ graph TB
 
     subgraph ExternalSL["SL Trafiklab Open Data APIs"]
         SL1["SL Typeahead<br/>Stop Search"]
-        SL2["SL Realtidsinformation 4<br/>Live Departures"]
+        SL2["SL Realtidsinformation 4<br/>Live Travel Dashboards"]
         SL3["SL Deviations<br/>Service Alerts"]
         SL4["SL Journey Planner<br/>Trip Planning"]
     end

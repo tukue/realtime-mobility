@@ -10,7 +10,7 @@ The app should let a rider:
 - Reopen recent and saved stops in one tap
 - Understand whether the backend and live data are currently healthy
 
-Live departures remain the primary experience. A journey planning panel also lets riders compare routes between two selected stops.
+Live travel dashboards remain the primary experience. A journey planning panel also lets riders compare routes between two selected stops.
 
 ## 2. Core Use Cases
 

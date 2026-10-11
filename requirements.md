@@ -11,7 +11,7 @@ A real-time bus travel planner focused on "Dinner Lines" in Stockholm—high-fre
 - **Nearby Stops:** Automatically detect the user's location and show the closest bus stops.
 
 ### 1.2 Real-Time Information
-- **Live Departures:** Show real-time "minutes to arrival" for buses, not just scheduled times.
+- **Live Travel Dashboards:** Show real-time "minutes to arrival" for buses, not just scheduled times.
 - **Line Tracking:** Display the current progress of a bus on its route.
 - **Service Alerts:** Real-time notifications for delays, cancellations, or rerouted "Dinner Lines."
 
