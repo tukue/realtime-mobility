@@ -260,6 +260,8 @@ state rather than stored separately, reducing contradictory UI states.
 
 ### 14.3 Asynchronous work and stale data
 
+Station suggestions appear inline and remain visible after input blur, until
+selection or Escape, so riders can click a station without losing the list.
 Stop searches require at least two trimmed characters and wait 300 milliseconds
 after typing. Effect cleanup cancels the debounce timer and prevents obsolete
 search responses from updating suggestions. In-flight stop searches are ignored
@@ -282,7 +284,9 @@ frontend API contract. Short Transport site IDs become global IDs at the backend
 boundary, and provider timestamps are rendered in Europe/Stockholm.
 
 Trip summaries expose times, duration, and changes; expandable details show the
-legs. Keeping details collapsed initially limits visual density. Loading, failed
+legs. The first route opens automatically so its itinerary is immediately visible;
+other numbered routes expose a Show details action. A prominent count banner and
+focused results heading bring successful results into view. Loading, failed
 requests, and successful empty results have separate UI states and retry actions.
 The frontend checks that `trips` is an array; complete runtime validation of every
 nested trip field remains a possible improvement.

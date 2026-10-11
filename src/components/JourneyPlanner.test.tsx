@@ -84,8 +84,12 @@ describe('journey endpoints and accessibility', () => {
       method: 'POST', body: JSON.stringify({ origin_id: '1', destination_id: '2' }),
     }));
     expect(screen.getByRole('region', { name: 'Journey results' })).toBeTruthy();
-    expect(screen.getByText('1 routes found.')).toBeTruthy();
+    expect(screen.getByText('1 route found.')).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Odenplan → Slussen' }));
+    expect(screen.getByText(/The first route is open below/)).toBeTruthy();
     const details = screen.getByRole('button', { name: /18:00.*18:20/ });
+    expect(details.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(details);
     expect(details.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(details);
     expect(details.getAttribute('aria-expanded')).toBe('true');
@@ -93,7 +97,7 @@ describe('journey endpoints and accessibility', () => {
     expect(screen.getByText('bus')).toBeTruthy();
   });
 
-  it('dismisses suggestions with Escape or blur without selecting a stop', async () => {
+  it('dismisses with Escape but keeps suggestions available after input blur', async () => {
     render(<JourneyPlanner initialOrigin={origin} />);
     await search();
     fireEvent.keyDown(destinationInput(), { key: 'Escape' });
@@ -101,8 +105,11 @@ describe('journey endpoints and accessibility', () => {
     fireEvent.keyDown(destinationInput(), { key: 'ArrowUp' });
     expect(screen.getByRole('option').getAttribute('aria-selected')).toBe('true');
     fireEvent.blur(destinationInput());
-    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(screen.getByRole('listbox')).toBeTruthy();
     expect(submit().disabled).toBe(true);
+    fireEvent.click(screen.getByRole('option'));
+    expect(submit().disabled).toBe(false);
+    expect(screen.queryByRole('listbox')).toBeNull();
   });
 
   it('supports pointer selection and rejects identical source/destination stops', async () => {
@@ -243,5 +250,106 @@ describe('stop search recovery', () => {
     expect(screen.getByRole('option', { name: /Slussen/ })).toBeTruthy();
     await search('');
     expect(screen.queryByRole('listbox')).toBeNull();
+  });
+});
+
+
+describe('visible station selection guidance', () => {
+  it('shows inline choices and instructions until a station is selected', async () => {
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await search();
+    expect(screen.getByText(/1 stop found. Click a station/)).toBeTruthy();
+    expect(screen.getByText(/Select an origin and destination from/)).toBeTruthy();
+    expect(screen.getByRole('listbox').style.position).toBe('relative');
+    fireEvent.blur(destinationInput());
+    fireEvent.click(screen.getByRole('option', { name: /Slussen/ }));
+    expect(screen.getByText('Slussen selected.')).toBeTruthy();
+    expect(screen.queryByText(/Select an origin and destination from/)).toBeNull();
+    expect(submit().disabled).toBe(false);
+  });
+});
+
+
+describe('route visibility', () => {
+  it('opens the first itinerary and labels other routes with a visible details action', async () => {
+    fetchMock.mockResolvedValue(response({ ...result, trips: [result.trips[0], result.trips[0]] }));
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    await act(async () => { fireEvent.click(submit()); });
+    expect(screen.getByText('2 routes found.')).toBeTruthy();
+    const first = screen.getByRole('button', { name: /Route 1.*Hide details/ });
+    const second = screen.getByRole('button', { name: /Route 2.*Show details/ });
+    expect(first.getAttribute('aria-expanded')).toBe('true');
+    expect(second.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getAllByText('bus')).toHaveLength(1);
+    fireEvent.click(second);
+    expect(second.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getAllByText('bus')).toHaveLength(2);
+  });
+});
+
+describe('route results navigation and reset', () => {
+  it('brings successful results into view and focuses their heading', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+    const scroll = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scroll });
+    try {
+      render(<JourneyPlanner initialOrigin={origin} />);
+      await selectDestination();
+      await act(async () => { fireEvent.click(submit()); });
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Odenplan → Slussen' }));
+      expect(scroll).toHaveBeenCalledWith({ behavior: 'auto', block: 'nearest' });
+    } finally {
+      if (descriptor) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', descriptor);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    }
+  });
+
+  it.each(['empty', 'failed'])('keeps input focus when the search is %s', async outcome => {
+    fetchMock.mockResolvedValueOnce(outcome === 'empty'
+      ? response({ ...result, trips: [] }) : response({}, false));
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    const input = destinationInput();
+    fireEvent.focus(input);
+    input.focus();
+    await act(async () => { fireEvent.submit(screen.getByRole('form', { name: 'Journey search' })); });
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
+    expect(outcome === 'empty' ? screen.getByText(/No routes found/) : screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('reopens the first route on a new search and removes the previous route count when inputs change', async () => {
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    await act(async () => { fireEvent.click(submit()); });
+    fireEvent.click(screen.getByRole('button', { name: /Route 1.*Hide details/ }));
+    expect(screen.queryByText('bus')).toBeNull();
+    await act(async () => { fireEvent.click(submit()); });
+    expect(screen.getByRole('button', { name: /Route 1.*Hide details/ }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('bus')).toBeTruthy();
+    fireEvent.change(destinationInput(), { target: { value: 'Another station' } });
+    expect(screen.queryByText('1 route found.')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
+    expect(submit().disabled).toBe(true);
+  });
+
+  it('shows all transfer legs in the first route without requiring an extra click', async () => {
+    const firstLeg = { ...result.trips[0].legs[0], destination: 'T-Centralen' };
+    const secondLeg = { ...result.trips[0].legs[0], origin: 'T-Centralen', line_number: '14', transport_mode: 'metro' };
+    fetchMock.mockResolvedValueOnce(response({ ...result, trips: [
+      { ...result.trips[0], changes: 1, legs: [firstLeg, secondLeg] },
+    ] }));
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    await act(async () => { fireEvent.click(submit()); });
+    expect(screen.getByText('1 change')).toBeTruthy();
+    expect(screen.getAllByText('T-Centralen')).toHaveLength(2);
+    expect(screen.getByText('bus')).toBeTruthy();
+    expect(screen.getByText('metro')).toBeTruthy();
+    const toggle = screen.getByRole('button', { name: /Hide details/ });
+    fireEvent.click(toggle);
+    expect(screen.queryByText('T-Centralen')).toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });
