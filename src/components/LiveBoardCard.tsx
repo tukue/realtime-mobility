@@ -29,7 +29,7 @@ function LiveBoardCard({ entry, color, isSoonest = false }: LiveBoardCardProps) 
         <div style={styles.bottomRow}>
           <div style={styles.meta}>{entry.expected_datetime}</div>
           <div style={styles.statusRow}>
-            {isSoonest && <span style={styles.nextBadge}>Next departure</span>}
+            {isSoonest && <span style={styles.nextBadge}>Next travel</span>}
             {hasDeviations ? (
               <div style={styles.deviationWrap}>
                 <span style={styles.alert}>{deviationText}</span>

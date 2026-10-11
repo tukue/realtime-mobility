@@ -332,9 +332,30 @@ Journey planning uses SL Journey-planner v2 (`https://journeyplanner.integration
 
 Provider contract: [SL Journey-planner v2 documentation](https://www.trafiklab.se/api/our-apis/sl/journey-planner-2/). Backend regression tests include synthetic Norgegatan → Sollentuna timetable data; their fixture station IDs and times do not assert current real-world route availability.
 
+### Station selection and route visibility improvements
+
+Station suggestions appear directly below each input and remain visible when
+focus moves away. Click a suggestion to select its station, or use Arrow Up/Down
+and Enter. Escape dismisses the list. A “stops found” message counts search
+matches; the “[station] selected” message confirms an endpoint is ready. Guidance
+explains why **Find routes** is unavailable until two different stations are selected.
+
+After a successful search, a prominent banner shows the route count and the page
+focuses and scrolls to the journey heading. Numbered cards make alternatives easy
+to compare. **Route 1** opens automatically with its stops, times, and travel legs;
+other routes have a **Show details** action. **Hide details** collapses an itinerary,
+and journeys without transfers display **Direct route**. Each new search resets
+the cards so the first route opens again. Editing either endpoint removes old
+results and their count.
+
+The user confirmed the feature is working on 11 October 2026 following the
+station selection and route visibility improvements. The reported scenario was
+Norgegatan → Sollentuna. This is user-reported validation; sample automated
+fixtures do not guarantee future timetable or provider availability.
+
 ### Journey planning tests
 
-Run `npm test` for the frontend regression suite. It covers main-page access, source/destination selection by keyboard and pointer, request IDs, expandable trip details, edited-field and same-stop validation, error recovery, request timeouts, and stale-response cancellation. Tests mock stop search and journey responses; they do not contact SL or require API credentials. CI runs this suite before building the frontend.
+Run `npm test` for the frontend regression suite. It covers main-page access, source/destination selection by keyboard and pointer, request IDs, expandable trip details, edited-field and same-stop validation, error recovery, request timeouts, and stale-response cancellation. Tests mock stop search and journey responses; they do not contact SL or require API credentials. The latest local run passed 25 frontend tests, including result focus and scrolling, empty/error focus behavior, first-route expansion, transfer-leg visibility, and repeat-search resets. The production build also passed. CI runs this suite before building the frontend.
 
 ### Frontend/backend journey integration tests
 
