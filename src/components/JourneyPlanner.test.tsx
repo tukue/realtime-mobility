@@ -373,6 +373,10 @@ describe('automatic journey transport discovery', () => {
     });
     expect(screen.getByText('2 routes found.')).toBeTruthy();
     expect(screen.getByText('bus')).toBeTruthy();
+    const secondRoute = screen.getByRole('button', { name: /Route 2/ });
+    expect(secondRoute.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(secondRoute);
+    expect(secondRoute.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('metro')).toBeTruthy();
   });
 });
