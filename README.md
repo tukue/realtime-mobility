@@ -4,7 +4,7 @@
 
 A full-stack application connecting Stockholm's public transit data (SL Trafiklab APIs) to a responsive dark-theme dashboard. Built with React + TypeScript on the frontend and Python FastAPI on the backend, containerized with Docker, and deployed via CI/CD.
 
-**Live URL**: [https://realtime-mobility.onrender.com](https://realtime-mobility.onrender.com)
+**Try the live app:** [Open Stockholm Travel Planner](https://realtime-mobility.onrender.com/)
 
 ## System Architecture
 
@@ -324,7 +324,7 @@ MIT
 Design decisions, tradeoffs, and testing limits for PR #34 are documented in
 [the journey planning design notes](design.md#14-pr-34-accessible-journey-planning-design).
 
-The main page includes a **Plan a journey** panel. Select origin and destination stops, then choose **Find routes**. Selecting a stop from search, recents, favorites, or nearby stops also sets the journey origin without clearing the destination. Journey results show departure and arrival times, duration, transfers, and expandable leg details.
+The main page includes a **Plan a journey** panel. Select origin and destination stops, then choose **Find routes**; no transport mode selection is needed. The planner finds routes available for those stations across Bus, Metro, and Train. Selecting a stop from search, recents, favorites, or nearby stops also sets the journey origin without clearing the destination. Results show departure and arrival times, duration, transfers, and leg details. The first route opens automatically, and other routes can be expanded to inspect their legs.
 
 Stop suggestions support Arrow Up/Down, Enter to select, Escape to dismiss, and Tab to continue. Editing either field clears its previous stop selection and any old routes. Loading, search failures, journey failures, and empty results are announced to assistive technology. A failed journey can be retried, and changing either endpoint cancels the old request.
 
@@ -334,11 +334,10 @@ Provider contract: [SL Journey-planner v2 documentation](https://www.trafiklab.s
 
 ### Journey transport modes
 
-Customers choose only their origin and destination. The planner searches across
-Bus, Metro, and Train, then displays the modes and transfers on each matching
-route. Available routes depend on the selected stations and the SL journey
-planner’s results; walking connections between stops may also appear. Tram and
-Ferry are not included in journey planning.
+The journey form searches across Bus, Metro, and Train automatically. It shows
+only routes available for the selected origin and destination, with the mode and
+transfers shown on each route. Walking connections between stops may also appear.
+Tram and Ferry are not included in journey planning.
 
 The optional `transport_modes` field in `POST /api/journey/plan` remains available
 for API clients that need to restrict results to `bus`, `metro`, and `train`. The
