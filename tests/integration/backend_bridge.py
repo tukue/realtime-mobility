@@ -31,6 +31,10 @@ def upstream(request):
     if request.url.path == httpx.URL(settings.sl_journey_url).path:
         assert request.url.params['name_origin'] == '9091001000009117'
         assert request.url.params['name_destination'] == '9091001000009192'
+        modes = input_request.get('body', {}).get('transport_modes', ['bus', 'metro', 'train', 'tram', 'ship'])
+        for mode, classes in {'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14), 'tram': (4,), 'ship': (9,)}.items():
+            for product_class in classes:
+                assert request.url.params[f'incl_mot_{product_class}'] == ('true' if mode in modes else 'false')
         def leg(origin, destination, dep, arr, line, direction):
             return {
                 'origin': {'name': origin, 'departureTimePlanned': f'2026-10-11T{dep}:00+02:00'},

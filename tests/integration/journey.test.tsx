@@ -91,6 +91,16 @@ describe('journey frontend/backend integration with sample Stockholm stations', 
     expect(screen.getByRole('region', { name: 'Journey results' })).toBeTruthy();
   });
 
+  it('sends a chosen transport combination through the API to the provider', async () => {
+    render(<JourneyPlanner />);
+    for (const name of ['Bus', 'Tram', 'Ferry']) fireEvent.click(screen.getByRole('checkbox', { name }));
+    await plan();
+    expect(requests[2].upstream[0].params).toMatchObject({
+      incl_mot_0: 'true', incl_mot_14: 'true', incl_mot_2: 'true',
+      incl_mot_5: 'false', incl_mot_10: 'false', incl_mot_19: 'false', incl_mot_4: 'false', incl_mot_9: 'false',
+    });
+  });
+
   it('rejects identical or missing endpoints at the API without contacting SL', async () => {
     const same = await api('/api/journey/plan', 'POST', { origin_id: '9117', destination_id: '9117' });
     expect(same.status).toBe(400);

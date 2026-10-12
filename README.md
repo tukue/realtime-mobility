@@ -332,6 +332,22 @@ Journey planning uses SL Journey-planner v2 (`https://journeyplanner.integration
 
 Provider contract: [SL Journey-planner v2 documentation](https://www.trafiklab.se/api/our-apis/sl/journey-planner-2/). Backend regression tests include synthetic Norgegatan → Sollentuna timetable data; their fixture station IDs and times do not assert current real-world route availability.
 
+### Journey transport modes
+
+Select **Bus**, **Metro**, **Train**, **Tram**, and/or **Ferry** before choosing
+**Find routes**. All five modes are enabled initially. Uncheck modes to exclude
+them, or choose **Select all modes** to restore the default. At least one mode
+must be selected. Walking connections between stops may still be included.
+
+Changing the selection clears previous routes and cancels a pending search;
+choose **Find routes** again to calculate journeys using the updated modes.
+This selection is independent of the live-dashboard mode tabs.
+
+The optional `transport_modes` field in `POST /api/journey/plan` accepts
+`bus`, `metro`, `train`, `tram`, and `ship` (the Ferry label). Omitting it retains
+all modes. Empty lists or unsupported modes return HTTP 422. The backend maps
+these values to SL v2 `incl_mot_*` flags, including related train and bus classes.
+
 ### Station selection and route visibility improvements
 
 Station suggestions appear directly below each input and remain visible when

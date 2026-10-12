@@ -370,3 +370,20 @@ improvements, in the context of the reported Norgegatan → Sollentuna search.
 The latest local frontend run passed 25 tests and the production build passed.
 This user confirmation complements the fixtures; it does not establish a complete
 browser, screen-reader, or live-provider compatibility matrix.
+
+### 14.10 Journey transport selection
+
+The journey form uses native labeled checkboxes in a Transport modes fieldset.
+Riders can combine Bus, Metro, Train, Tram, and Ferry; all are enabled initially.
+Select all modes restores the default. Empty selection disables submission and
+shows an actionable alert. Changing modes invalidates displayed and pending
+results, preserving the same stale-response protections as station edits.
+
+The frontend sends an optional transport_modes array when a subset is selected.
+The backend validates allowed values and a nonempty list, preserving existing
+clients that omit the field. Mode selection is sent to the routing provider,
+rather than filtering returned trips in the browser. Bus includes regular,
+on-demand, and närtrafik classes; Train includes commuter and national trains.
+Every supported provider flag is explicitly enabled or disabled, preventing
+unselected modes from being reenabled by provider defaults. Walking connections
+remain allowed. Dashboard mode tabs retain their separate purpose.

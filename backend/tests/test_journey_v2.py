@@ -122,3 +122,23 @@ class JourneyV2Tests(unittest.IsolatedAsyncioTestCase):
             ):
                 with self.assertRaises(SLApiError):
                     await plan_journey('1234', '5678')
+
+    async def test_transport_mode_flags_cover_enabled_and_disabled_provider_classes(self):
+        mapping = {'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14), 'tram': (4,), 'ship': (9,)}
+        for selected in [['bus'], ['metro', 'train'], ['tram', 'ship'], None]:
+            with self.subTest(selected=selected), patch(
+                'services.journey_service._fetch_json', new=AsyncMock(return_value={'journeys': []}),
+            ) as fetch:
+                await plan_journey('1234', '5678', transport_modes=selected)
+                params = fetch.call_args.args[1]
+            for mode, classes in mapping.items():
+                for product_class in classes:
+                    self.assertEqual(params[f'incl_mot_{product_class}'],
+                                     'true' if selected is None or mode in selected else 'false')
+
+    async def test_invalid_or_empty_modes_do_not_contact_provider(self):
+        for modes in [[], ['helicopter'], ['bus', 'unknown']]:
+            with self.subTest(modes=modes), patch('services.journey_service._fetch_json', new=AsyncMock()) as fetch:
+                with self.assertRaises(ValueError):
+                    await plan_journey('1234', '5678', transport_modes=modes)
+                fetch.assert_not_awaited()

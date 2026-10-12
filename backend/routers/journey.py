@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Literal, Optional
 
 from httpx import AsyncClient
 from services.dependencies import get_http_client
@@ -16,6 +16,9 @@ class JourneyRequest(BaseModel):
     destination_id: str
     datetime: Optional[str] = None
     max_changes: int = 3
+    transport_modes: Optional[list[Literal['bus', 'metro', 'train', 'tram', 'ship']]] = Field(
+        default=None, min_length=1, max_length=5,
+    )
 
     @field_validator("origin_id", "destination_id")
     @classmethod
@@ -40,4 +43,5 @@ async def plan(req: JourneyRequest, client: AsyncClient = Depends(get_http_clien
         req.datetime,
         req.max_changes,
         client=client,
+        transport_modes=req.transport_modes,
     )

@@ -353,3 +353,49 @@ describe('route results navigation and reset', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });
+
+describe('journey transport mode selection', () => {
+  it('selects all modes by default and submits a chosen combination', async () => {
+    render(<JourneyPlanner initialOrigin={origin} />);
+    expect(screen.getByRole('group', { name: 'Transport modes' })).toBeTruthy();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(5);
+    for (const checkbox of screen.getAllByRole('checkbox')) {
+      expect((checkbox as HTMLInputElement).checked).toBe(true);
+    }
+    await selectDestination();
+    for (const name of ['Bus', 'Tram', 'Ferry']) fireEvent.click(screen.getByRole('checkbox', { name }));
+    await act(async () => { fireEvent.click(submit()); });
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({
+      origin_id: '1', destination_id: '2', transport_modes: ['metro', 'train'],
+    });
+  });
+
+  it('requires at least one mode and lets users restore all modes', async () => {
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    for (const checkbox of screen.getAllByRole('checkbox')) fireEvent.click(checkbox);
+    expect(submit().disabled).toBe(true);
+    expect(screen.getByRole('alert').textContent).toContain('Select at least one transport mode');
+    fireEvent.submit(screen.getByRole('form', { name: 'Journey search' }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Select all modes' }));
+    expect(submit().disabled).toBe(false);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('invalidates old results and aborts a pending search when modes change', async () => {
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    await act(async () => { fireEvent.click(submit()); });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Bus' }));
+    expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
+    const pending = deferred<Response>();
+    fetchMock.mockReturnValueOnce(pending.promise);
+    fireEvent.click(submit());
+    const signal = fetchMock.mock.calls[1][1]!.signal!;
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Metro' }));
+    expect(signal.aborted).toBe(true);
+    await act(async () => { pending.resolve(response(result)); });
+    expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
+  });
+});
