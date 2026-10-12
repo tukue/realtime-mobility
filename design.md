@@ -374,8 +374,9 @@ browser, screen-reader, or live-provider compatibility matrix.
 ### 14.10 Journey transport selection
 
 The journey form uses native labeled checkboxes in a Transport modes fieldset.
-Riders can combine Bus, Metro, Train, Tram, and Ferry; all are enabled initially.
-Select all modes restores the default. Empty selection disables submission and
+Riders can combine Bus, Metro, Train, Tram, and Ferry; Bus alone is selected
+initially for the customer flow. Select all modes broadens the search to every
+mode. Empty selection disables submission and
 shows an actionable alert. Changing modes invalidates displayed and pending
 results, preserving the same stale-response protections as station edits.
 

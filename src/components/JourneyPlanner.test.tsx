@@ -81,7 +81,7 @@ describe('journey endpoints and accessibility', () => {
     expect(input.getAttribute('aria-expanded')).toBe('false');
     await act(async () => { fireEvent.submit(screen.getByRole('form', { name: 'Journey search' })); });
     expect(fetchMock).toHaveBeenCalledWith('/api/journey/plan', expect.objectContaining({
-      method: 'POST', body: JSON.stringify({ origin_id: '1', destination_id: '2' }),
+      method: 'POST', body: JSON.stringify({ origin_id: '1', destination_id: '2', transport_modes: ['bus'] }),
     }));
     expect(screen.getByRole('region', { name: 'Journey results' })).toBeTruthy();
     expect(screen.getByText('1 route found.')).toBeTruthy();
@@ -137,7 +137,7 @@ describe('journey endpoints and accessibility', () => {
     expect((screen.getByRole('combobox', { name: 'Origin' }) as HTMLInputElement).value).toBe('Centralen');
     expect(destinationInput().value).toBe(destination.Name);
     await act(async () => { fireEvent.click(submit()); });
-    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({ origin_id: '3', destination_id: '2' });
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({ origin_id: '3', destination_id: '2', transport_modes: ['bus'] });
   });
 });
 
@@ -355,15 +355,15 @@ describe('route results navigation and reset', () => {
 });
 
 describe('journey transport mode selection', () => {
-  it('selects all modes by default and submits a chosen combination', async () => {
+  it('defaults to Bus and submits a chosen combination', async () => {
     render(<JourneyPlanner initialOrigin={origin} />);
     expect(screen.getByRole('group', { name: 'Transport modes' })).toBeTruthy();
     expect(screen.getAllByRole('checkbox')).toHaveLength(5);
     for (const checkbox of screen.getAllByRole('checkbox')) {
-      expect((checkbox as HTMLInputElement).checked).toBe(true);
+      expect((checkbox as HTMLInputElement).checked).toBe(checkbox === screen.getByRole('checkbox', { name: 'Bus' }));
     }
     await selectDestination();
-    for (const name of ['Bus', 'Tram', 'Ferry']) fireEvent.click(screen.getByRole('checkbox', { name }));
+    for (const name of ['Bus', 'Metro', 'Train']) fireEvent.click(screen.getByRole('checkbox', { name }));
     await act(async () => { fireEvent.click(submit()); });
     expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({
       origin_id: '1', destination_id: '2', transport_modes: ['metro', 'train'],
@@ -373,7 +373,7 @@ describe('journey transport mode selection', () => {
   it('requires at least one mode and lets users restore all modes', async () => {
     render(<JourneyPlanner initialOrigin={origin} />);
     await selectDestination();
-    for (const checkbox of screen.getAllByRole('checkbox')) fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Bus' }));
     expect(submit().disabled).toBe(true);
     expect(screen.getByRole('alert').textContent).toContain('Select at least one transport mode');
     fireEvent.submit(screen.getByRole('form', { name: 'Journey search' }));
@@ -385,6 +385,7 @@ describe('journey transport mode selection', () => {
 
   it('invalidates old results and aborts a pending search when modes change', async () => {
     render(<JourneyPlanner initialOrigin={origin} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Select all modes' }));
     await selectDestination();
     await act(async () => { fireEvent.click(submit()); });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Bus' }));
@@ -397,5 +398,26 @@ describe('journey transport mode selection', () => {
     expect(signal.aborted).toBe(true);
     await act(async () => { pending.resolve(response(result)); });
     expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
+  });
+});
+
+
+describe('Bus default customer flow', () => {
+  it('finds bus journeys after station selection without requiring a mode change', async () => {
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    expect(submit().disabled).toBe(false);
+    await act(async () => { fireEvent.click(submit()); });
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string).transport_modes).toEqual(['bus']);
+    expect(screen.getByRole('region', { name: 'Journey results' })).toBeTruthy();
+  });
+
+  it('lets customers broaden a bus search to all transport modes', async () => {
+    render(<JourneyPlanner initialOrigin={origin} />);
+    await selectDestination();
+    fireEvent.click(screen.getByRole('button', { name: 'Select all modes' }));
+    expect(screen.getAllByRole('checkbox').every(input => (input as HTMLInputElement).checked)).toBe(true);
+    await act(async () => { fireEvent.click(submit()); });
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({ origin_id: '1', destination_id: '2' });
   });
 });

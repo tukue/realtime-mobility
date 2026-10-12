@@ -65,6 +65,7 @@ describe('journey frontend/backend integration with sample Stockholm stations', 
   });
   it('searches stations, submits their IDs, normalizes provider trips and expands transfer legs', async () => {
     render(<JourneyPlanner />);
+    fireEvent.click(screen.getByRole('button', { name: 'Select all modes' }));
     await plan();
     expect(requests).toHaveLength(3);
     expect(requests[2].upstream[0].params).toMatchObject({ name_origin: '9091001000009117', name_destination: '9091001000009192' });
@@ -82,6 +83,7 @@ describe('journey frontend/backend integration with sample Stockholm stations', 
   it('renders an empty provider result and successfully retries the same journey', async () => {
     empty = true;
     render(<JourneyPlanner />);
+    fireEvent.click(screen.getByRole('button', { name: 'Select all modes' }));
     await plan();
     expect(screen.getByText(/No routes found/)).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
@@ -93,7 +95,7 @@ describe('journey frontend/backend integration with sample Stockholm stations', 
 
   it('sends a chosen transport combination through the API to the provider', async () => {
     render(<JourneyPlanner />);
-    for (const name of ['Bus', 'Tram', 'Ferry']) fireEvent.click(screen.getByRole('checkbox', { name }));
+    for (const name of ['Bus', 'Metro', 'Train']) fireEvent.click(screen.getByRole('checkbox', { name }));
     await plan();
     expect(requests[2].upstream[0].params).toMatchObject({
       incl_mot_0: 'true', incl_mot_14: 'true', incl_mot_2: 'true',

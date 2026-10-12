@@ -207,7 +207,7 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
   const [resultVersion, setResultVersion] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [transportModes, setTransportModes] = useState<TransportMode[]>([...TRANSPORT_MODES])
+  const [transportModes, setTransportModes] = useState<TransportMode[]>(['bus'])
 
   const resultsHeading = useRef<HTMLHeadingElement | null>(null)
   useEffect(() => {

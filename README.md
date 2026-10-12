@@ -335,8 +335,9 @@ Provider contract: [SL Journey-planner v2 documentation](https://www.trafiklab.s
 ### Journey transport modes
 
 Select **Bus**, **Metro**, **Train**, **Tram**, and/or **Ferry** before choosing
-**Find routes**. All five modes are enabled initially. Uncheck modes to exclude
-them, or choose **Select all modes** to restore the default. At least one mode
+**Find routes**. **Bus is selected by default** so customers can search for a
+bus journey immediately after choosing stations. Add other modes as needed, or
+choose **Select all modes** to search across every transport mode. At least one mode
 must be selected. Walking connections between stops may still be included.
 
 Changing the selection clears previous routes and cancels a pending search;
