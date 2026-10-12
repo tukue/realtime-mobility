@@ -226,7 +226,7 @@ class TestJourneyRouter(unittest.TestCase):
         self.assertEqual(service.call_args.kwargs['transport_modes'], ['metro', 'train'])
 
     def test_invalid_transport_modes_return_422_without_calling_service(self):
-        for modes in [[], ['plane'], ['bus', 'unknown']]:
+        for modes in [[], ['plane'], ['tram'], ['ship'], ['bus', 'unknown']]:
             with self.subTest(modes=modes), patch('routers.journey.plan_journey', new=AsyncMock()) as service:
                 response = self.client.post('/api/journey/plan', json={
                     'origin_id': '1001', 'destination_id': '2002', 'transport_modes': modes,

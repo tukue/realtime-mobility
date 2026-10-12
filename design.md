@@ -371,19 +371,15 @@ The latest local frontend run passed 25 tests and the production build passed.
 This user confirmation complements the fixtures; it does not establish a complete
 browser, screen-reader, or live-provider compatibility matrix.
 
-### 14.10 Journey transport selection
+### 14.10 Automatic transport mode discovery
 
-The journey form uses native labeled checkboxes in a Transport modes fieldset.
-Riders can combine Bus, Metro, Train, Tram, and Ferry; all are enabled initially.
-Select all modes restores the default. Empty selection disables submission and
-shows an actionable alert. Changing modes invalidates displayed and pending
-results, preserving the same stale-response protections as station edits.
+The customer-facing journey form asks only for origin and destination. It omits
+`transport_modes` from the request, so the backend enables Bus, Metro, and Train
+classes and lets the provider return routes available for that station pair.
+Each result leg carries its mode for display. Tram and Ferry are outside the
+supported journey-planning modes. Walking connections may also be included.
 
-The frontend sends an optional transport_modes array when a subset is selected.
-The backend validates allowed values and a nonempty list, preserving existing
-clients that omit the field. Mode selection is sent to the routing provider,
-rather than filtering returned trips in the browser. Bus includes regular,
-on-demand, and närtrafik classes; Train includes commuter and national trains.
-Every supported provider flag is explicitly enabled or disabled, preventing
-unselected modes from being reenabled by provider defaults. Walking connections
-remain allowed. Dashboard mode tabs retain their separate purpose.
+The API retains its optional `transport_modes` filter for other clients. When
+provided, the backend accepts `bus`, `metro`, and `train` and maps them to SL v2
+provider flags; when omitted, all three supported modes are enabled. Dashboard
+mode tabs remain independent of journey planning.

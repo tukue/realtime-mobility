@@ -354,48 +354,29 @@ describe('route results navigation and reset', () => {
   });
 });
 
-describe('journey transport mode selection', () => {
-  it('selects all modes by default and submits a chosen combination', async () => {
+describe('automatic journey transport discovery', () => {
+  it('searches all modes for the selected stations and displays the returned mode', async () => {
+    const multiModeResult = {
+      ...result,
+      trips: [
+        result.trips[0],
+        { ...result.trips[0], legs: [{ ...result.trips[0].legs[0], transport_mode: 'metro' }] },
+      ],
+    };
+    fetchMock.mockResolvedValueOnce(response(multiModeResult));
     render(<JourneyPlanner initialOrigin={origin} />);
-    expect(screen.getByRole('group', { name: 'Transport modes' })).toBeTruthy();
-    expect(screen.getAllByRole('checkbox')).toHaveLength(5);
-    for (const checkbox of screen.getAllByRole('checkbox')) {
-      expect((checkbox as HTMLInputElement).checked).toBe(true);
-    }
     await selectDestination();
-    for (const name of ['Bus', 'Tram', 'Ferry']) fireEvent.click(screen.getByRole('checkbox', { name }));
+    expect(submit().disabled).toBe(false);
     await act(async () => { fireEvent.click(submit()); });
     expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toEqual({
-      origin_id: '1', destination_id: '2', transport_modes: ['metro', 'train'],
+      origin_id: '1', destination_id: '2',
     });
-  });
-
-  it('requires at least one mode and lets users restore all modes', async () => {
-    render(<JourneyPlanner initialOrigin={origin} />);
-    await selectDestination();
-    for (const checkbox of screen.getAllByRole('checkbox')) fireEvent.click(checkbox);
-    expect(submit().disabled).toBe(true);
-    expect(screen.getByRole('alert').textContent).toContain('Select at least one transport mode');
-    fireEvent.submit(screen.getByRole('form', { name: 'Journey search' }));
-    expect(fetchMock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Select all modes' }));
-    expect(submit().disabled).toBe(false);
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-
-  it('invalidates old results and aborts a pending search when modes change', async () => {
-    render(<JourneyPlanner initialOrigin={origin} />);
-    await selectDestination();
-    await act(async () => { fireEvent.click(submit()); });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Bus' }));
-    expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
-    const pending = deferred<Response>();
-    fetchMock.mockReturnValueOnce(pending.promise);
-    fireEvent.click(submit());
-    const signal = fetchMock.mock.calls[1][1]!.signal!;
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Metro' }));
-    expect(signal.aborted).toBe(true);
-    await act(async () => { pending.resolve(response(result)); });
-    expect(screen.queryByRole('region', { name: 'Journey results' })).toBeNull();
+    expect(screen.getByText('2 routes found.')).toBeTruthy();
+    expect(screen.getByText('bus')).toBeTruthy();
+    const secondRoute = screen.getByRole('button', { name: /Route 2/ });
+    expect(secondRoute.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(secondRoute);
+    expect(secondRoute.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('metro')).toBeTruthy();
   });
 });
