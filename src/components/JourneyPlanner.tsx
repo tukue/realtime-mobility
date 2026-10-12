@@ -2,6 +2,10 @@ import React, { useEffect, useId, useRef, useState } from 'react'
 import { Site } from '../types'
 import { searchStops } from '../lib/stopSearch'
 
+const TRANSPORT_MODES = ['bus', 'metro', 'train', 'tram', 'ship'] as const
+type TransportMode = typeof TRANSPORT_MODES[number]
+const MODE_LABELS: Record<TransportMode, string> = { bus: 'Bus', metro: 'Metro', train: 'Train', tram: 'Tram', ship: 'Ferry' }
+
 interface JourneyLeg {
   origin: string
   destination: string
@@ -203,6 +207,7 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
   const [resultVersion, setResultVersion] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [transportModes, setTransportModes] = useState<TransportMode[]>([...TRANSPORT_MODES])
 
   const resultsHeading = useRef<HTMLHeadingElement | null>(null)
   useEffect(() => {
@@ -234,7 +239,7 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
   }, [])
 
   const sameStop = !!originSite && originSite.SiteId === destSite?.SiteId
-  const canSearch = !!originSite && !!destSite && !sameStop && !loading
+  const canSearch = !!originSite && !!destSite && !sameStop && transportModes.length > 0 && !loading
 
   const handleSearch = async () => {
     if (!canSearch || !originSite || !destSite) return
@@ -251,7 +256,10 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
       const res = await fetch('/api/journey/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ origin_id: originSite.SiteId, destination_id: destSite.SiteId }),
+        body: JSON.stringify({
+          origin_id: originSite.SiteId, destination_id: destSite.SiteId,
+          ...(transportModes.length !== TRANSPORT_MODES.length ? { transport_modes: transportModes } : {}),
+        }),
         signal: pending.signal,
       })
       if (!res.ok) throw new Error('Journey service unavailable')
@@ -292,6 +300,29 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
         {(!originSite || !destSite) && (originText.trim().length >= 2 || destText.trim().length >= 2) && (
           <p style={{ color: 'var(--muted)', marginTop: '10px' }}>Select an origin and destination from the station suggestions to enable Find routes.</p>
         )}
+        <fieldset style={styles.modeFieldset} aria-describedby="journey-mode-help">
+          <legend style={styles.inputLabel}>Transport modes</legend>
+          <div style={styles.modeChoices}>
+            {TRANSPORT_MODES.map(mode => (
+              <label key={mode} style={styles.modeChoice}>
+                <input type="checkbox" checked={transportModes.includes(mode)} onChange={() => {
+                  invalidate()
+                  setTransportModes(current => current.includes(mode)
+                    ? current.filter(value => value !== mode) : [...current, mode])
+                }} />
+                {MODE_LABELS[mode]}
+              </label>
+            ))}
+            <button type="button" style={styles.retryBtn} onClick={() => {
+              invalidate()
+              setTransportModes([...TRANSPORT_MODES])
+            }}>Select all modes</button>
+          </div>
+          <p id="journey-mode-help" style={{ color: 'var(--muted)', fontSize: '0.85rem', marginTop: '8px' }}>
+            Choose the transport you want to use. Walking between stops may still be included.
+          </p>
+          {transportModes.length === 0 && <p role="alert">Select at least one transport mode to find routes.</p>}
+        </fieldset>
         {sameStop && <p role="alert" style={styles.errorBox}>Choose a destination different from your origin.</p>}
         <button type="submit" disabled={!canSearch} style={{ ...styles.searchBtn, marginTop: '14px', opacity: canSearch || loading ? 1 : 0.55 }}>
           {loading ? 'Searching...' : 'Find routes'}
@@ -329,6 +360,9 @@ export default function JourneyPlanner({ initialOrigin, onStopSelect }: JourneyP
 const styles: Record<string, React.CSSProperties> = {
   container: { display: 'grid', gap: '14px' },
   inputs: { display: 'grid', gap: '10px' },
+  modeFieldset: { border: '1px solid var(--border)', borderRadius: '14px', padding: '12px', marginTop: '12px' },
+  modeChoices: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' },
+  modeChoice: { display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px', cursor: 'pointer' },
   inputWrap: { display: 'grid', gap: '6px', position: 'relative' },
   inputLabel: {
     fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.08em',

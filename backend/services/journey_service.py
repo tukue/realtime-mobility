@@ -12,6 +12,9 @@ from services.sl_api import _fetch_json
 from services.sl_config import get_sl_journey_url
 
 STOCKHOLM = ZoneInfo('Europe/Stockholm')
+TRANSPORT_MODE_CLASSES = {
+    'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14), 'tram': (4,), 'ship': (9,),
+}
 
 
 def _local_time(value: str | None) -> str:
@@ -62,6 +65,7 @@ async def plan_journey(
     max_changes: int = 3,
     *,
     client: Optional[httpx.AsyncClient] = None,
+    transport_modes: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     origin_id, destination_id = _global_site_id(origin_id), _global_site_id(destination_id)
     if origin_id == destination_id:
@@ -72,6 +76,12 @@ async def plan_journey(
         'calc_number_of_trips': 3, 'max_changes': max(0, min(5, max_changes)),
         'language': 'en', 'calc_one_direction': 'true',
     }
+    selected_modes = set(TRANSPORT_MODE_CLASSES if transport_modes is None else transport_modes)
+    if not selected_modes or not selected_modes.issubset(TRANSPORT_MODE_CLASSES):
+        raise ValueError('Select at least one valid transport mode')
+    for mode, classes in TRANSPORT_MODE_CLASSES.items():
+        for product_class in classes:
+            params[f'incl_mot_{product_class}'] = 'true' if mode in selected_modes else 'false'
     if datetime_str:
         dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
         if dt.tzinfo is not None:
