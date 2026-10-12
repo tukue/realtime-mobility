@@ -31,15 +31,17 @@ def upstream(request):
     if request.url.path == httpx.URL(settings.sl_journey_url).path:
         assert request.url.params['name_origin'] == '9091001000009117'
         assert request.url.params['name_destination'] == '9091001000009192'
-        modes = input_request.get('body', {}).get('transport_modes', ['bus', 'metro', 'train', 'tram', 'ship'])
-        for mode, classes in {'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14), 'tram': (4,), 'ship': (9,)}.items():
+        modes = input_request.get('body', {}).get('transport_modes', ['bus', 'metro', 'train'])
+        for mode, classes in {'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14)}.items():
             for product_class in classes:
                 assert request.url.params[f'incl_mot_{product_class}'] == ('true' if mode in modes else 'false')
+        assert request.url.params['incl_mot_4'] == 'false'
+        assert request.url.params['incl_mot_9'] == 'false'
         def leg(origin, destination, dep, arr, line, direction):
             return {
                 'origin': {'name': origin, 'departureTimePlanned': f'2026-10-11T{dep}:00+02:00'},
                 'destination': {'name': destination, 'arrivalTimePlanned': f'2026-10-11T{arr}:00+02:00'},
-                'transportation': {'number': line, 'product': {'class': 2}, 'destination': {'name': direction}},
+                'transportation': {'number': line, 'product': {'class': 5 if line == '17' else 2}, 'destination': {'name': direction}},
             }
         trip = {'tripDuration': 600, 'interchanges': 1, 'legs': [
             leg('Odenplan', 'T-Centralen', '10:00', '10:04', '17', 'Skarpnäck'),

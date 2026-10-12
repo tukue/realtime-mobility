@@ -16,8 +16,8 @@ class JourneyRequest(BaseModel):
     destination_id: str
     datetime: Optional[str] = None
     max_changes: int = 3
-    transport_modes: Optional[list[Literal['bus', 'metro', 'train', 'tram', 'ship']]] = Field(
-        default=None, min_length=1, max_length=5,
+    transport_modes: Optional[list[Literal['bus', 'metro', 'train']]] = Field(
+        default=None, min_length=1, max_length=3,
     )
 
     @field_validator("origin_id", "destination_id")

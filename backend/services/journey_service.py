@@ -13,8 +13,9 @@ from services.sl_config import get_sl_journey_url
 
 STOCKHOLM = ZoneInfo('Europe/Stockholm')
 TRANSPORT_MODE_CLASSES = {
-    'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14), 'tram': (4,), 'ship': (9,),
+    'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14),
 }
+EXCLUDED_TRANSPORT_CLASSES = (4, 9)  # Tram and ship are outside journey planning.
 
 
 def _local_time(value: str | None) -> str:
@@ -76,12 +77,14 @@ async def plan_journey(
         'calc_number_of_trips': 3, 'max_changes': max(0, min(5, max_changes)),
         'language': 'en', 'calc_one_direction': 'true',
     }
-    selected_modes = set(TRANSPORT_MODE_CLASSES if transport_modes is None else transport_modes)
+    selected_modes = set(('bus', 'metro', 'train') if transport_modes is None else transport_modes)
     if not selected_modes or not selected_modes.issubset(TRANSPORT_MODE_CLASSES):
-        raise ValueError('Select at least one valid transport mode')
+        raise ValueError('Select at least one valid journey transport mode (bus, metro, or train)')
     for mode, classes in TRANSPORT_MODE_CLASSES.items():
         for product_class in classes:
             params[f'incl_mot_{product_class}'] = 'true' if mode in selected_modes else 'false'
+    for product_class in EXCLUDED_TRANSPORT_CLASSES:
+        params[f'incl_mot_{product_class}'] = 'false'
     if datetime_str:
         dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
         if dt.tzinfo is not None:

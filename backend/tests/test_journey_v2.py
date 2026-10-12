@@ -124,8 +124,8 @@ class JourneyV2Tests(unittest.IsolatedAsyncioTestCase):
                     await plan_journey('1234', '5678')
 
     async def test_transport_mode_flags_cover_enabled_and_disabled_provider_classes(self):
-        mapping = {'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14), 'tram': (4,), 'ship': (9,)}
-        for selected in [['bus'], ['metro', 'train'], ['tram', 'ship'], None]:
+        mapping = {'bus': (5, 10, 19), 'metro': (2,), 'train': (0, 14)}
+        for selected in [['bus'], ['metro'], ['train'], ['metro', 'train'], list(mapping), None]:
             with self.subTest(selected=selected), patch(
                 'services.journey_service._fetch_json', new=AsyncMock(return_value={'journeys': []}),
             ) as fetch:
@@ -135,9 +135,11 @@ class JourneyV2Tests(unittest.IsolatedAsyncioTestCase):
                 for product_class in classes:
                     self.assertEqual(params[f'incl_mot_{product_class}'],
                                      'true' if selected is None or mode in selected else 'false')
+            self.assertEqual(params['incl_mot_4'], 'false')
+            self.assertEqual(params['incl_mot_9'], 'false')
 
     async def test_invalid_or_empty_modes_do_not_contact_provider(self):
-        for modes in [[], ['helicopter'], ['bus', 'unknown']]:
+        for modes in [[], ['helicopter'], ['tram'], ['ship'], ['bus', 'unknown']]:
             with self.subTest(modes=modes), patch('services.journey_service._fetch_json', new=AsyncMock()) as fetch:
                 with self.assertRaises(ValueError):
                     await plan_journey('1234', '5678', transport_modes=modes)

@@ -334,20 +334,17 @@ Provider contract: [SL Journey-planner v2 documentation](https://www.trafiklab.s
 
 ### Journey transport modes
 
-Select **Bus**, **Metro**, **Train**, **Tram**, and/or **Ferry** before choosing
-**Find routes**. **Bus is selected by default** so customers can search for a
-bus journey immediately after choosing stations. Add other modes as needed, or
-choose **Select all modes** to search across every transport mode. At least one mode
-must be selected. Walking connections between stops may still be included.
+Customers choose only their origin and destination. The planner searches across
+Bus, Metro, and Train, then displays the modes and transfers on each matching
+route. Available routes depend on the selected stations and the SL journey
+planner’s results; walking connections between stops may also appear. Tram and
+Ferry are not included in journey planning.
 
-Changing the selection clears previous routes and cancels a pending search;
-choose **Find routes** again to calculate journeys using the updated modes.
-This selection is independent of the live-dashboard mode tabs.
-
-The optional `transport_modes` field in `POST /api/journey/plan` accepts
-`bus`, `metro`, `train`, `tram`, and `ship` (the Ferry label). Omitting it retains
-all modes. Empty lists or unsupported modes return HTTP 422. The backend maps
-these values to SL v2 `incl_mot_*` flags, including related train and bus classes.
+The optional `transport_modes` field in `POST /api/journey/plan` remains available
+for API clients that need to restrict results to `bus`, `metro`, and `train`. The
+customer-facing journey form omits this field so the provider can return routes
+across all three supported journey modes. Empty lists or unsupported modes return
+HTTP 422.
 
 ### Station selection and route visibility improvements
 
